@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ar" >
+<head>
+  <meta charset="UTF-8" />
+  <title>تتبع الأولاد - ثيم هكر مجنون</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+
+  <style>
+    /* ثيم هكر */
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+    body {
+      background-color: #0f1410;
+      color: #39ff14;
+      font-family: 'Share Tech Mono', monospace;
+      margin: 0;
+      padding: 20px;
+      direction: rtl;
+      user-select: none;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3 {
+      text-shadow:
+        0 0 5px #39ff14,
+        0 0 10px #39ff14,
+        0 0 20px #39ff14,
+        0 0 40px #00ff00;
+      margin-bottom: 20px;
+      animation: flicker 2s infinite alternate;
+    }
+
+    /* انميشن تومض */
+    @keyframes flicker {
+      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+        opacity: 1;
+        text-shadow:
+          0 0 5px #39ff14,
+          0 0 10px #39ff14,
+          0 0 20px #39ff14,
+          0 0 40px #00ff00;
+      }
+      20%, 22%, 24%, 55% {
+        opacity: 0.6;
+        text-shadow: none;
+      }
+    }
+
+    /* أنميشن للزر */
+    button {
+      background: transparent;
+      border: 2px solid #39ff14;
+      color: #39ff14;
+      padding: 12px 25px;
+      font-size: 1.1rem;
+      font-family: 'Share Tech Mono', monospace;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow:
+        0 0 5px #39ff14,
+        inset 0 0 10px #39ff14;
+      margin-top: 10px;
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button:hover {
+      color: #0f1410;
+      background: #39ff14;
+      box-shadow:
+        0 0 20px #39ff14,
+        inset 0 0 40px #39ff14;
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow:
+          0 0 10px #39ff14,
+          inset 0 0 20px #39ff14;
+      }
+      100% {
+        box-shadow:
+          0 0 30px #00ff00,
+          inset 0 0 60px #00ff00;
+      }
+    }
+
+    /* شكل الحاوية */
+    #loginDiv, #mapDiv {
+      max-width: 600px;
+      margin: auto;
+      border: 2px solid #39ff14;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow:
+        0 0 10px #39ff14;
+      background-color: #0a0f0a;
+    }
+
+    input[type=text] {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 2px solid #39ff14;
+      border-radius: 8px;
+      background: #0f1410;
+      color: #39ff14;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1rem;
+      box-shadow:
+        inset 0 0 8px #39ff14;
+    }
+
+    input[type=text]::placeholder {
+      color: #22cc22;
+      opacity: 0.7;
+      font-style: italic;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      max-height: 150px;
+      overflow-y: auto;
+      border: 2px solid #39ff14;
+      border-radius: 8px;
+      background: #0a0f0a;
+      box-shadow: inset 0 0 10px #22cc22;
+      margin-bottom: 15px;
+    }
+
+    li {
+      cursor: pointer;
+      padding: 10px;
+      border-bottom: 1px solid #22cc22;
+      transition: background-color 0.3s;
+    }
+    li:last-child {
+      border-bottom: none;
+    }
+    li:hover {
+      background-color: #22cc22;
+      color: #0f1410;
+      font-weight: bold;
+      box-shadow:
+        0 0 5px #00ff00;
+      animation: pulse 0.7s infinite alternate;
+    }
+
+    /* الخريطة */
+    #map {
+      height: 400px;
+      border-radius: 12px;
+      box-shadow:
+        0 0 20px #39ff14;
+    }
+
+    /* تأخير للظهور مع انميشن */
+    .fadeIn {
+      animation: fadeInAnim 1.5s ease forwards;
+      opacity: 0;
+    }
+    @keyframes fadeInAnim {
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loginDiv" class="fadeIn">
+    <h1> تطبيق معرفة اماكن ابنائك تسجيل الدخول</h1>
+    <label><input type="radio" name="role" value="parent" checked /> ولي أمر</label>
+    <label><input type="radio" name="role" value="child" /> طفل</label>
+
+    <div id="parentForm" style="margin-top:20px;">
+      <h3>معلومات ولي الأمر</h3>
+      <input type="text" id="parentName" placeholder="اسم ولي الأمر" />
+      <input type="text" id="parentInfo" placeholder="معلومات عنك كولي أمر" />
+      <button id="parentRegisterBtn">تسجيل / تسجيل دخول ولي أمر</button>
+    </div>
+
+    <div id="childForm" style="display:none; margin-top:20px;">
+      <h3>معلومات الطفل</h3>
+      <input type="text" id="childName" placeholder="اسم الطفل" />
+      <input type="text" id="childPhone" placeholder="رقم هاتف الطفل" />
+      <input type="text" id="childParentName" placeholder="اسم ولي الأمر المسجل" />
+      <button id="childRegisterBtn">تسجيل / تسجيل دخول الطفل</button>
+    </div>
+  </div>
+
+  <div id="mapDiv" style="display:none;" class="fadeIn">
+    <h2>خريطة أولادي</h2>
+    <ul id="childrenList"></ul>
+    <div id="map"></div>
+    <button id="logoutBtn" style="margin-top:20px;">تسجيل خروج</button>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+  <!-- Leaflet -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
+  ></script>
+
+  <script>
+    // إعداد Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyCwuWnFl3cGetmrNlWxcU5NT_mHQQzkEqo",
+      authDomain: "familytracker-77ec8.firebaseapp.com",
+      databaseURL: "https://familytracker-77ec8-default-rtdb.firebaseio.com",
+      projectId: "familytracker-77ec8",
+      storageBucket: "familytracker-77ec8.appspot.com",
+      messagingSenderId: "527698679661",
+      appId: "1:527698679661:web:af62a9327797646c3c2c64",
+      measurementId: "G-B8ZYB634DN"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // DOM Elements
+    const roleRadios = document.getElementsByName('role');
+    const parentForm = document.getElementById('parentForm');
+    const childForm = document.getElementById('childForm');
+
+    const parentRegisterBtn = document.getElementById('parentRegisterBtn');
+    const childRegisterBtn = document.getElementById('childRegisterBtn');
+
+    const loginDiv = document.getElementById('loginDiv');
+    const mapDiv = document.getElementById('mapDiv');
+    const childrenList = document.getElementById('childrenList');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    let map;
+    let markers = {};
+    let currentParent = null;
+
+    // تغيير النماذج حسب الدور
+    roleRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        if (radio.value === 'parent' && radio.checked) {
+          parentForm.style.display = 'block';
+          childForm.style.display = 'none';
+        } else if (radio.value === 'child' && radio.checked) {
+          parentForm.style.display = 'none';
+          childForm.style.display = 'block';
+        }
+      });
+    });
+
+    // تسجيل ولي أمر (تسجيل جديد أو دخول)
+    parentRegisterBtn.onclick = () => {
+      const name = document.getElementById('parentName').value.trim();
+      const info = document.getElementById('parentInfo').value.trim();
+      if (!name) return alert('ادخل اسم ولي الأمر');
+
+      db.ref('parents/' + name).set({ name, info }).then(() => {
+        alert('تم تسجيل الدخول كولي أمر');
+        currentParent = name;
+        showMapForParent(name);
+      }).catch(e => {
+        alert('خطأ في التسجيل: ' + e.message);
+      });
+    };
+
+    // تسجيل طفل (يربطه بولي أمر)
+    childRegisterBtn.onclick = () => {
+      const childName = document.getElementById('childName').value.trim();
+      const phone = document.getElementById('childPhone').value.trim();
+      const parentName = document.getElementById('childParentName').value.trim();
+      if (!childName || !phone || !parentName) return alert('اكمل كل البيانات');
+
+      db.ref('parents/' + parentName).get().then(snapshot => {
+        if (!snapshot.exists()) {
+          alert('ولي الأمر غير موجود، تأكد من الاسم');
+          return;
+        }
+        db.ref('children/' + childName).set({ name: childName, phone, parentName, lat: null, lng: null });
+        alert('تم تسجيل الطفل');
+      }).catch(e => alert('خطأ في التسجيل: ' + e.message));
+    };
+
+    // عرض الخريطة وأولاد ولي الأمر
+    function showMapForParent(parentName) {
+      loginDiv.style.display = 'none';
+      mapDiv.style.display = 'block';
+
+      if (!map) {
+        map = L.map('map').setView([24.7136, 46.6753], 6); // الرياض كمثال
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(map);
+      }
+
+      db.ref('children').orderByChild('parentName').equalTo(parentName).on('value', snapshot => {
+        childrenList.innerHTML = '';
+        for (const mk in markers) {
+          map.removeLayer(markers[mk]);
+        }
+        markers = {};
+
+        snapshot.forEach(childSnap => {
+          const child = childSnap.val();
+          const li = document.createElement('li');
+          li.textContent = child.name;
+          li.onclick = () => {
+            if (child.lat && child.lng) {
+              map.setView([child.lat, child.lng], 15);
+              if (markers[child.name]) {
+                map.removeLayer(markers[child.name]);
+              }
+              markers[child.name] = L.marker([child.lat, child.lng])
+                .addTo(map)
+                .bindPopup(child.name)
+                .openPopup();
+            } else {
+              alert('لم يتم تحديث موقع هذا الطفل بعد');
+            }
+          };
+          childrenList.appendChild(li);
+        });
+      });
+    }
+
+    logoutBtn.onclick = () => {
+      currentParent = null;
+      mapDiv.style.display = 'none';
+      loginDiv.style.display = 'block';
+    };
+
+    // تحديث موقع الطفل تلقائياً (كل 10 ثواني)
+    setInterval(() => {
+      const role = [...roleRadios].find(r => r.checked).value;
+      if (role === 'child') {
+        const childName = document.getElementById('childName').value.trim();
+        if (!childName) return;
+
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            db.ref('children/' + childName).update({ lat, lng });
+          });
+        }
+      }
+    }, 10000);
+  </script>
+
+</body>
+</html>
