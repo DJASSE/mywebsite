@@ -1,207 +1,1380 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>تتبع العائلة</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق تتبع الأطفال</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dpoWcMAoHurN_4&libraries=geometry"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            direction: rtl;
+        }
 
-  <!-- Leaflet + OpenTopoMap -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+        .screen {
+            display: none;
+            min-height: 100vh;
+        }
 
-  <!-- خطوط و ستايل -->
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Cairo', sans-serif;
-      background: linear-gradient(135deg, #56ccf2, #2f80ed);
-      color: white;
-      text-align: center;
-    }
+        .screen.active {
+            display: block;
+        }
 
-    h1 {
-      margin: 20px 0;
-      font-size: 24px;
-    }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-top: 50px;
+        }
 
-    .container {
-      padding: 20px;
-    }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
 
-    button {
-      padding: 12px 24px;
-      font-size: 16px;
-      margin: 10px;
-      border: none;
-      border-radius: 30px;
-      background: rgba(255, 255, 255, 0.2);
-      color: white;
-      backdrop-filter: blur(10px);
-      cursor: pointer;
-      transition: 0.3s;
-    }
+        .user-type-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
 
-    button:hover {
-      background: rgba(255, 255, 255, 0.4);
-    }
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
 
-    select {
-      padding: 10px;
-      margin: 10px;
-      border-radius: 10px;
-      border: none;
-    }
+        .btn-parent {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            flex-direction: column;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 150px;
+        }
 
-    #map {
-      height: 400px;
-      width: 100%;
-      border-radius: 20px;
-      margin-top: 20px;
-    }
+        .btn-child {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+            flex-direction: column;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 150px;
+        }
 
-    @media (max-width: 600px) {
-      h1 { font-size: 20px; }
-      button { width: 90%; }
-      #map { height: 300px; }
-    }
-  </style>
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-google {
+            background: #db4437;
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-logout {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .header {
+            background: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .dashboard-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            width: 300px;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid #ddd;
+        }
+
+        .children-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .child-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .child-item:hover {
+            background: #e9ecef;
+            transform: translateX(-5px);
+        }
+
+        .child-item.active {
+            background: #667eea;
+            color: white;
+            border-color: #5a6fd8;
+        }
+
+        .child-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .child-status {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .location-status {
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .location-info {
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        .location-info p {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+
+        .location-info span {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ddd;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 15px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 200px;
+            }
+            
+            .user-type-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn-parent, .btn-child {
+                min-width: 200px;
+            }
+        }
+
+        .btn span {
+            font-size: 30px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.error {
+            background: #f44336;
+        }
+
+        .google-icon {
+            width: 20px;
+            height: 20px;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>📍 تتبع أفراد العائلة</h1>
-    <p>سجّل دخولك باستخدام Google</p>
-    <button onclick="signIn()">تسجيل الدخول بـ Google</button>
-
-    <div id="roleSelect" style="display:none;">
-      <h3>اختر دورك:</h3>
-      <button onclick="setRole('parent')">ولي أمر 👨‍👧</button>
-      <button onclick="setRole('child')">طفل 🧒</button>
+    <!-- شاشة اختيار نوع المستخدم -->
+    <div id="userTypeScreen" class="screen active">
+        <div class="container">
+            <h1>مرحباً بك في تطبيق تتبع الأطفال</h1>
+            <div class="user-type-buttons">
+                <button class="btn btn-parent" id="parentBtn">
+                    <span>👨‍👩‍👧‍👦</span>
+                    ولي أمر
+                </button>
+                <button class="btn btn-child" id="childBtn">
+                    <span>👶</span>
+                    طفل
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div id="mapSection" style="display:none;">
-      <h3 id="mapTitle"></h3>
-      <select id="childList" onchange="focusOnChild()" style="display:none;"></select>
-      <div id="map"></div>
+    <!-- شاشة تسجيل دخول ولي الأمر -->
+    <div id="parentLoginScreen" class="screen">
+        <div class="container">
+            <h2>تسجيل دخول ولي الأمر</h2>
+            <div id="parentError" class="error" style="display: none;"></div>
+            <div id="parentSuccess" class="success" style="display: none;"></div>
+            
+            <!-- تسجيل الدخول بـ Google -->
+            <button type="button" class="btn btn-google" id="parentGoogleBtn">
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                تسجيل الدخول بـ Google
+            </button>
+            
+            <div class="divider">
+                <span>أو</span>
+            </div>
+            
+            <form id="parentForm">
+                <div class="form-group">
+                    <label>الاسم الكامل:</label>
+                    <input type="text" id="parentName" required>
+                </div>
+                <div class="form-group">
+                    <label>رقم الهاتف:</label>
+                    <input type="tel" id="parentPhone" required>
+                </div>
+                <div class="form-group">
+                    <label>البريد الإلكتروني:</label>
+                    <input type="email" id="parentEmail" required>
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور:</label>
+                    <input type="password" id="parentPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary">تسجيل الدخول</button>
+                <button type="button" class="btn btn-secondary" id="parentBackBtn">رجوع</button>
+            </form>
+        </div>
     </div>
-  </div>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyCwuWnFl3cGetmrNlWxcU5NT_mHQQzkEqo",
-      authDomain: "familytracker-77ec8.firebaseapp.com",
-      databaseURL: "https://familytracker-77ec8-default-rtdb.firebaseio.com",
-      projectId: "familytracker-77ec8",
-      storageBucket: "familytracker-77ec8.appspot.com",
-      messagingSenderId: "527698679661",
-      appId: "1:527698679661:web:af62a9327797646c3c2c64"
-    };
+    <!-- شاشة تسجيل دخول الطفل -->
+    <div id="childLoginScreen" class="screen">
+        <div class="container">
+            <h2>تسجيل دخول الطفل</h2>
+            <div id="childError" class="error" style="display: none;"></div>
+            <div id="childSuccess" class="success" style="display: none;"></div>
+            
+            <!-- تسجيل الدخول بـ Google للطفل -->
+            <button type="button" class="btn btn-google" id="childGoogleBtn">
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                تسجيل الدخول بـ Google
+            </button>
+            
+            <div class="divider">
+                <span>أو</span>
+            </div>
+            
+            <form id="childForm">
+                <div class="form-group">
+                    <label>اسمك:</label>
+                    <input type="text" id="childName" required>
+                </div>
+                <div class="form-group">
+                    <label>رقم هاتفك:</label>
+                    <input type="tel" id="childPhone" required>
+                </div>
+                <div class="form-group">
+                    <label>رقم هاتف ولي الأمر:</label>
+                    <input type="tel" id="parentPhoneForChild" required>
+                </div>
+                <button type="submit" class="btn btn-primary">تسجيل الدخول</button>
+                <button type="button" class="btn btn-secondary" id="childBackBtn">رجوع</button>
+            </form>
+        </div>
+    </div>
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
+    <!-- شاشة ولي الأمر - الخريطة -->
+    <div id="parentDashboard" class="screen">
+        <div class="header">
+            <h2 id="parentWelcome">مرحباً</h2>
+            <button class="btn btn-logout" id="parentLogoutBtn">تسجيل خروج</button>
+        </div>
+        
+        <div class="dashboard-container">
+            <div class="sidebar">
+                <h3>قائمة الأطفال</h3>
+                <div id="childrenList" class="children-list">
+                    <div class="loading">جاري تحميل قائمة الأطفال...</div>
+                </div>
+            </div>
+            
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
 
-    let currentUser;
-    let map;
-    let markers = {};
-    let role = "";
+    <!-- شاشة الطفل - مشاركة الموقع -->
+    <div id="childDashboard" class="screen">
+        <div class="container">
+            <h2 id="childWelcome">مرحباً</h2>
+            <div class="location-status">
+                <p id="locationStatus" class="pulse">جاري تحديد موقعك...</p>
+                <div class="location-info">
+                    <p>خط العرض: <span id="latitude">--</span></p>
+                    <p>خط الطول: <span id="longitude">--</span></p>
+                    <p>آخر تحديث: <span id="lastUpdate">--</span></p>
+                    <p>دقة الموقع: <span id="accuracy">--</span> متر</p>
+                </div>
+            </div>
+            <button class="btn btn-logout" id="childLogoutBtn">تسجيل خروج</button>
+        </div>
+    </div>
 
-    function signIn() {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider)
-        .then((result) => {
-          currentUser = result.user;
-          document.querySelector("#roleSelect").style.display = "block";
-        })
-        .catch((error) => {
-          alert("فشل تسجيل الدخول: " + error.message);
-        });
-    }
+    <script>
+        // المتغيرات العامة
+        let map;
+        let markers = {};
+        let currentUser = null;
+        let userType = null;
+        let locationWatchId = null;
 
-    function setRole(selectedRole) {
-      role = selectedRole;
-      document.querySelector("#roleSelect").style.display = "none";
+        // إعداد Firebase مع معلوماتك
+        const firebaseConfig = {
+            apiKey: "AIzaSyCwuWnFl3cGetmrNlWxcU5NT_mHQQzkEqo",
+            authDomain: "familytracker-77ec8.firebaseapp.com",
+            databaseURL: "https://familytracker-77ec8-default-rtdb.firebaseio.com",
+            projectId: "familytracker-77ec8",
+            storageBucket: "familytracker-77ec8.firebasestorage.app",
+            messagingSenderId: "527698679661",
+            appId: "1:527698679661:web:af62a9327797646c3c2c64",
+            measurementId: "G-B8ZYB634DN"
+        };
 
-      if (role === 'child') {
-        startChildTracking();
-      } else if (role === 'parent') {
-        showParentMap();
-      }
-    }
+        // تهيئة Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const database = firebase.database();
 
-    function startChildTracking() {
-      if (navigator.geolocation) {
-        navigator.geolocation.watchPosition((position) => {
-          const { latitude, longitude } = position.coords;
-          db.ref("children/" + currentUser.uid).set({
-            name: currentUser.displayName,
-            lat: latitude,
-            lng: longitude
-          });
-        });
-      } else {
-        alert("الموقع غير مدعوم في هذا المتصفح");
-      }
+        // إعداد Google Auth Provider
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+        googleProvider.addScope('profile');
+        googleProvider.addScope('email');
 
-      document.querySelector("#mapTitle").innerText = "موقعك الحالي";
-      document.querySelector("#mapSection").style.display = "block";
-      initMap();
-    }
-
-    function showParentMap() {
-      document.querySelector("#mapTitle").innerText = "أماكن أبنائك";
-      document.querySelector("#mapSection").style.display = "block";
-      document.querySelector("#childList").style.display = "inline";
-
-      initMap();
-
-      db.ref("children").on("value", (snapshot) => {
-        const children = snapshot.val();
-        const childList = document.getElementById("childList");
-        childList.innerHTML = "";
-
-        for (let uid in children) {
-          const child = children[uid];
-          if (!markers[uid]) {
-            const marker = L.marker([child.lat, child.lng]).addTo(map).bindPopup(child.name);
-            markers[uid] = marker;
-          } else {
-            markers[uid].setLatLng([child.lat, child.lng]);
-          }
-
-          const option = document.createElement("option");
-          option.value = uid;
-          option.text = child.name;
-          childList.appendChild(option);
+        // عرض الشاشات
+        function showScreen(screenId) {
+            console.log('عرض الشاشة:', screenId);
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
         }
-      });
-    }
 
-    function initMap() {
-      if (map) return;
-      map = L.map('map').setView([36.75, 3.06], 6); // الجزائر العاصمة تقريباً
+        // عرض رسائل الخطأ والنجاح
+        function showMessage(elementId, message, isError = true) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = message;
+                element.style.display = 'block';
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 5000);
+            }
+        }
 
-      // OpenTopoMap tiles
-      L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        maxZoom: 17,
-        attribution: 'Map data: &copy; OpenStreetMap contributors | Style: OpenTopoMap'
-      }).addTo(map);
-    }
+        // دالة لعرض الإشعارات
+        function showNotification(message, isError = false) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${isError ? 'error' : ''}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 3000);
+        }
 
-    function focusOnChild() {
-      const uid = document.getElementById("childList").value;
-      const marker = markers[uid];
-      if (marker) {
-        map.setView(marker.getLatLng(), 15);
-        marker.openPopup();
-      }
-    }
-  </script>
+        // تحديث حالة الموقع
+        function updateLocationStatus(message, type = 'info') {
+            const statusElement = document.getElementById('locationStatus');
+            if (statusElement) {
+                statusElement.textContent = message;
+                statusElement.className = 'pulse';
+                
+                switch(type) {
+                    case 'success':
+                        statusElement.style.color = '#4CAF50';
+                        statusElement.classList.remove('pulse');
+                        break;
+                    case 'error':
+                        statusElement.style.color = '#f44336';
+                        statusElement.classList.remove('pulse');
+                        break;
+                    case 'warning':
+                        statusElement.style.color = '#ff9800';
+                        statusElement.classList.remove('pulse');
+                        break;
+                    default:
+                        statusElement.style.color = '#333';
+                        break;
+                }
+            }
+        }
+
+        // تهيئة الأحداث عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('تم تحميل الصفحة');
+
+            // أزرار الشاشة الرئيسية
+            const parentBtn = document.getElementById('parentBtn');
+            const childBtn = document.getElementById('childBtn');
+            
+            if (parentBtn) {
+                parentBtn.addEventListener('click', function() {
+                    console.log('تم النقر على زر ولي الأمر');
+                    showScreen('parentLoginScreen');
+                });
+            }
+
+            if (childBtn) {
+                childBtn.addEventListener('click', function() {
+                    console.log('تم النقر على زر الطفل');
+                    showScreen('childLoginScreen');
+                });
+            }
+
+            // أزرار الرجوع
+            const parentBackBtn = document.getElementById('parentBackBtn');
+            const childBackBtn = document.getElementById('childBackBtn');
+            
+            if (parentBackBtn) {
+                parentBackBtn.addEventListener('click', function() {
+                    console.log('رجوع من شاشة ولي الأمر');
+                    showScreen('userTypeScreen');
+                });
+            }
+
+            if (childBackBtn) {
+                childBackBtn.addEventListener('click', function() {
+                    console.log('رجوع من شاشة الطفل');
+                    showScreen('userTypeScreen');
+                });
+            }
+
+            // أزرار تسجيل الخروج
+            const parentLogoutBtn = document.getElementById('parentLogoutBtn');
+            const childLogoutBtn = document.getElementById('childLogoutBtn');
+            
+            if (parentLogoutBtn) {
+                parentLogoutBtn.addEventListener('click', logout);
+            }
+
+            if (childLogoutBtn) {
+                childLogoutBtn.addEventListener('click', logout);
+            }
+
+            // أزرار Google
+            const parentGoogleBtn = document.getElementById('parentGoogleBtn');
+            const childGoogleBtn = document.getElementById('childGoogleBtn');
+
+            if (parentGoogleBtn) {
+                parentGoogleBtn.addEventListener('click', () => signInWithGoogle('parent'));
+            }
+
+            if (childGoogleBtn) {
+                childGoogleBtn.addEventListener('click', () => signInWithGoogle('child'));
+            }
+
+            // تأثير النقر للأزرار
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    const ripple = document.createElement('span');
+                    const rect = this.getBoundingClientRect();
+                    const size = Math.max(rect.width, rect.height);
+                    const x = e.clientX - rect.left - size / 2;
+                    const y = e.clientY - rect.top - size / 2;
+                    
+                    ripple.style.cssText = `
+                        position: absolute;
+                        border-radius: 50%;
+                        background: rgba(255,255,255,0.6);
+                        transform: scale(0);
+                        animation: ripple 0.6s linear;
+                        left: ${x}px;
+                        top: ${y}px;
+                        width: ${size}px;
+                        height: ${size}px;
+                        pointer-events: none;
+                    `;
+                    
+                    this.appendChild(ripple);
+                    
+                    setTimeout(() => {
+                        ripple.remove();
+                    }, 600);
+                });
+            });
+        });
+
+        // تسجيل الدخول بـ Google
+        async function signInWithGoogle(type) {
+            try {
+                console.log('محاولة تسجيل الدخول بـ Google للنوع:', type);
+                
+                const result = await auth.signInWithPopup(googleProvider);
+                const user = result.user;
+                
+                console.log('تم تسجيل الدخول بـ Google بنجاح:', user);
+                
+                currentUser = user;
+                userType = type;
+                
+                if (type === 'parent') {
+                    // حفظ بيانات ولي الأمر
+                    await db.collection('parents').doc(user.uid).set({
+                        name: user.displayName,
+                        email: user.email,
+                        phone: user.phoneNumber || '',
+                        photoURL: user.photoURL,
+                        provider: 'google',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                    
+                    showMessage('parentSuccess', 'تم تسجيل الدخول بـ Google بنجاح', false);
+                    document.getElementById('parentWelcome').textContent = `مرحباً ${user.displayName}`;
+                    
+                    setTimeout(() => {
+                        showScreen('parentDashboard');
+                        initMap();
+                        loadChildren();
+                    }, 1000);
+                    
+                } else if (type === 'child') {
+                    // للطفل، نحتاج لربطه بولي الأمر
+                    showChildGoogleSetup(user);
+                }
+                
+            } catch (error) {
+                console.error('خطأ في تسجيل الدخول بـ Google:', error);
+                const errorElementId = type === 'parent' ? 'parentError' : 'childError';
+                showMessage(errorElementId, 'خطأ في تسجيل الدخول بـ Google: ' + error.message);
+            }
+        }
+
+        // إعداد الطفل بعد تسجيل الدخول بـ Google
+        function showChildGoogleSetup(user) {
+            const parentPhone = prompt('يرجى إدخال رقم هاتف ولي الأمر:');
+            if (!parentPhone) {
+                showMessage('childError', 'يجب إدخال رقم هاتف ولي الأمر');
+                return;
+            }
+            
+            setupChildWithGoogle(user, parentPhone);
+        }
+
+        // إعداد الطفل مع Google
+        async function setupChildWithGoogle(user, parentPhone) {
+            try {
+                // البحث عن ولي الأمر
+                const parentQuery = await db.collection('parents')
+                    .where('phone', '==', parentPhone)
+                    .get();
+                
+                if (parentQuery.empty) {
+                    showMessage('childError', 'لم يتم العثور على ولي الأمر بهذا الرقم');
+                    return;
+                }
+                
+                const parentDoc = parentQuery.docs[0];
+                const parentId = parentDoc.id;
+                
+                // حفظ بيانات الطفل
+                const childData = {
+                    name: user.displayName,
+                    email: user.email,
+                    phone: user.phoneNumber || '',
+                    photoURL: user.photoURL,
+                    parentId: parentId,
+                    provider: 'google',
+                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+                    isOnline: true
+                };
+                
+                await db.collection('children').doc(user.uid).set(childData, { merge: true });
+                
+                currentUser = { uid: user.uid, name: user.displayName };
+                userType = 'child';
+                
+                showMessage('childSuccess', 'تم تسجيل الدخول بـ Google بنجاح', false);
+                document.getElementById('childWelcome').textContent = `مرحباً ${user.displayName}`;
+                
+                setTimeout(() => {
+                    showScreen('childDashboard');
+                    startLocationTracking(user.uid);
+                }, 1000);
+                
+            } catch (error) {
+                console.error('خطأ في إعداد الطفل:', error);
+                showMessage('childError', 'خطأ في إعداد الحساب: ' + error.message);
+            }
+        }
+
+        // ت        // تسجيل دخول ولي الأمر بالبريد الإلكتروني
+        document.getElementById('parentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('محاولة تسجيل دخول ولي الأمر');
+            
+            const name = document.getElementById('parentName').value;
+            const phone = document.getElementById('parentPhone').value;
+            const email = document.getElementById('parentEmail').value;
+            const password = document.getElementById('parentPassword').value;
+            
+            try {
+                let userCredential;
+                try {
+                    userCredential = await auth.signInWithEmailAndPassword(email, password);
+                    showMessage('parentSuccess', 'تم تسجيل الدخول بنجاح', false);
+                } catch (signInError) {
+                    userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    
+                    await db.collection('parents').doc(userCredential.user.uid).set({
+                        name: name,
+                        phone: phone,
+                        email: email,
+                        provider: 'email',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    showMessage('parentSuccess', 'تم إنشاء الحساب وتسجيل الدخول بنجاح', false);
+                }
+                
+                currentUser = userCredential.user;
+                userType = 'parent';
+                
+                document.getElementById('parentWelcome').textContent = `مرحباً ${name}`;
+                
+                setTimeout(() => {
+                    showScreen('parentDashboard');
+                    initMap();
+                    loadChildren();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('خطأ في تسجيل الدخول:', error);
+                showMessage('parentError', 'خطأ في تسجيل الدخول: ' + error.message);
+            }
+        });
+
+        // تسجيل دخول الطفل بالبيانات العادية
+        document.getElementById('childForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('محاولة تسجيل دخول الطفل');
+            
+            const childName = document.getElementById('childName').value;
+            const childPhone = document.getElementById('childPhone').value;
+            const parentPhone = document.getElementById('parentPhoneForChild').value;
+            
+            try {
+                const parentQuery = await db.collection('parents')
+                    .where('phone', '==', parentPhone)
+                    .get();
+                
+                if (parentQuery.empty) {
+                    showMessage('childError', 'لم يتم العثور على ولي الأمر بهذا الرقم');
+                    return;
+                }
+                
+                const parentDoc = parentQuery.docs[0];
+                const parentId = parentDoc.id;
+                
+                const childData = {
+                    name: childName,
+                    phone: childPhone,
+                    parentId: parentId,
+                    provider: 'manual',
+                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+                    isOnline: true
+                };
+                
+                const childQuery = await db.collection('children')
+                    .where('phone', '==', childPhone)
+                    .where('parentId', '==', parentId)
+                    .get();
+                
+                let childId;
+                if (childQuery.empty) {
+                    const childRef = await db.collection('children').add(childData);
+                    childId = childRef.id;
+                } else {
+                    childId = childQuery.docs[0].id;
+                    await db.collection('children').doc(childId).update(childData);
+                }
+                
+                currentUser = { uid: childId, name: childName };
+                userType = 'child';
+                
+                showMessage('childSuccess', 'تم تسجيل الدخول بنجاح', false);
+                document.getElementById('childWelcome').textContent = `مرحباً ${childName}`;
+                
+                setTimeout(() => {
+                    showScreen('childDashboard');
+                    startLocationTracking(childId);
+                }, 1000);
+                
+            } catch (error) {
+                console.error('خطأ في تسجيل دخول الطفل:', error);
+                showMessage('childError', 'خطأ في تسجيل الدخول: ' + error.message);
+            }
+        });
+
+        // تهيئة الخريطة
+        function initMap() {
+            console.log('تهيئة الخريطة');
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 13,
+                center: { lat: 24.7136, lng: 46.6753 }, // الرياض
+                mapTypeId: 'roadmap',
+                styles: [
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels',
+                        stylers: [{ visibility: 'off' }]
+                    }
+                ]
+            });
+        }
+
+        // تحميل قائمة الأطفال
+        function loadChildren() {
+            if (!currentUser || userType !== 'parent') return;
+            
+            console.log('تحميل قائمة الأطفال');
+            const childrenList = document.getElementById('childrenList');
+            
+            db.collection('children')
+                .where('parentId', '==', currentUser.uid)
+                .onSnapshot((snapshot) => {
+                    childrenList.innerHTML = '';
+                    markers = {};
+                    
+                    if (snapshot.empty) {
+                        childrenList.innerHTML = '<div class="loading">لا توجد أطفال مسجلين بعد</div>';
+                        return;
+                    }
+                    
+                    snapshot.forEach((doc) => {
+                        const child = doc.data();
+                        const childId = doc.id;
+                        
+                        const childItem = document.createElement('div');
+                        childItem.className = 'child-item';
+                        
+                        const lastUpdateText = child.lastUpdate ? 
+                            new Date(child.lastUpdate.toDate()).toLocaleString('ar-SA') : 
+                            'لم يتم التحديث بعد';
+                        
+                        childItem.innerHTML = `
+                            <div class="child-name">${child.name}</div>
+                            <div class="child-status">${child.isOnline ? '🟢 متصل' : '🔴 غير متصل'}</div>
+                            <div style="font-size: 12px; margin-top: 5px;">
+                                آخر تحديث: ${lastUpdateText}
+                            </div>
+                            ${child.provider === 'google' ? '<div style="font-size: 10px; color: #4285f4;">📧 Google</div>' : ''}
+                        `;
+                        
+                        childItem.addEventListener('click', () => {
+                            focusOnChild(childId, child);
+                            document.querySelectorAll('.child-item').forEach(item => {
+                                item.classList.remove('active');
+                            });
+                            childItem.classList.add('active');
+                        });
+                        
+                        childrenList.appendChild(childItem);
+                        
+                        if (child.location) {
+                            addChildMarker(childId, child);
+                        }
+                    });
+                });
+        }
+
+        // إضافة علامة الطفل على الخريطة
+        function addChildMarker(childId, child) {
+            if (!child.location || !map) return;
+            
+            const position = {
+                lat: child.location.latitude,
+                lng: child.location.longitude
+            };
+            
+            if (markers[childId]) {
+                markers[childId].setMap(null);
+            }
+            
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: child.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 15,
+                    fillColor: child.isOnline ? '#4CAF50' : '#f44336',
+                    fillOpacity: 1,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 3
+                }
+            });
+            
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div style="text-align: center; direction: rtl; font-family: Arial;">
+                        <h3 style="margin: 0 0 10px 0; color: #333;">${child.name}</h3>
+                        <p style="margin: 5px 0;"><strong>الحالة:</strong> ${child.isOnline ? '🟢 متصل' : '🔴 غير متصل'}</p>
+                        <p style="margin: 5px 0;"><strong>آخر تحديث:</strong><br>${child.lastUpdate ? new Date(child.lastUpdate.toDate()).toLocaleString('ar-SA') : 'غير محدد'}</p>
+                        <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                            <strong>الإحداثيات:</strong><br>
+                            ${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}
+                        </p>
+                        ${child.accuracy ? `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>دقة الموقع:</strong> ${Math.round(child.accuracy)} متر</p>` : ''}
+                        ${child.provider === 'google' ? '<p style="margin: 5px 0; font-size: 10px; color: #4285f4;">تم تسجيل الدخول بـ Google</p>' : ''}
+                    </div>
+                `
+            });
+            
+            marker.addListener('click', () => {
+                Object.values(markers).forEach(m => {
+                    if (m.infoWindow) {
+                        m.infoWindow.close();
+                    }
+                });
+                infoWindow.open(map, marker);
+            });
+            
+            marker.infoWindow = infoWindow;
+            markers[childId] = marker;
+        }
+
+        // التركيز على طفل معين
+        function focusOnChild(childId, child) {
+            if (child.location && map) {
+                const position = {
+                    lat: child.location.latitude,
+                    lng: child.location.longitude
+                };
+                
+                map.setCenter(position);
+                map.setZoom(16);
+                
+                if (markers[childId]) {
+                    google.maps.event.trigger(markers[childId], 'click');
+                }
+            } else {
+                showNotification('موقع هذا الطفل غير متوفر حالياً', true);
+            }
+        }
+
+        // بدء تتبع موقع الطفل
+        function startLocationTracking(childId) {
+            console.log('بدء تتبع الموقع للطفل:', childId);
+            
+            if (!navigator.geolocation) {
+                updateLocationStatus('المتصفح لا يدعم تحديد الموقع', 'error');
+                return;
+            }
+            
+            updateLocationStatus('جاري طلب إذن الوصول للموقع...', 'info');
+            
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 30000
+            };
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    updateLocationStatus('تم الحصول على الإذن - بدء التتبع...', 'info');
+                    
+                    locationWatchId = navigator.geolocation.watchPosition(
+                        (position) => {
+                            const lat = position.coords.latitude;
+                            const lng = position.coords.longitude;
+                            const accuracy = position.coords.accuracy;
+                            
+                            // حفظ في Firestore
+                            db.collection('children').doc(childId).update({
+                                location: new firebase.firestore.GeoPoint(lat, lng),
+                                lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+                                isOnline: true,
+                                accuracy: accuracy
+                            }).then(() => {
+                                updateLocationStatus('✅ تم تحديث موقعك بنجاح', 'success');
+                                document.getElementById('latitude').textContent = lat.toFixed(6);
+                                document.getElementById('longitude').textContent = lng.toFixed(6);
+                                document.getElementById('lastUpdate').textContent = new Date().toLocaleString('ar-SA');
+                                document.getElementById('accuracy').textContent = Math.round(accuracy);
+                                
+                                showNotification('تم تحديث الموقع بنجاح');
+                            }).catch((error) => {
+                                updateLocationStatus('❌ خطأ في حفظ الموقع', 'error');
+                                showNotification('خطأ في حفظ الموقع', true);
+                            });
+
+                            // حفظ في Realtime Database أيضاً للتحديث الفوري
+                            database.ref('locations/' + childId).set({
+                                latitude: lat,
+                                longitude: lng,
+                                accuracy: accuracy,
+                                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                                isOnline: true
+                            });
+                        },
+                        (error) => {
+                            let errorMessage = 'خطأ في تحديد الموقع: ';
+                            switch(error.code) {
+                                case error.PERMISSION_DENIED:
+                                    errorMessage += 'تم رفض الإذن لتحديد الموقع';
+                                    break;
+                                case error.POSITION_UNAVAILABLE:
+                                    errorMessage += 'معلومات الموقع غير متوفرة';
+                                    break;
+                                case error.TIMEOUT:
+                                    errorMessage += 'انتهت مهلة طلب تحديد الموقع';
+                                    break;
+                                default:
+                                    errorMessage += 'خطأ غير معروف';
+                                    break;
+                            }
+                            updateLocationStatus(errorMessage, 'error');
+                            showNotification(errorMessage, true);
+                        },
+                        options
+                    );
+                },
+                (error) => {
+                    updateLocationStatus('يرجى السماح بالوصول للموقع لتتمكن من المتابعة', 'warning');
+                    showNotification('يرجى السماح بالوصول للموقع', true);
+                }
+            );
+        }
+
+        // تسجيل الخروج
+        async function logout() {
+            try {
+                // إيقاف تتبع الموقع
+                if (locationWatchId) {
+                    navigator.geolocation.clearWatch(locationWatchId);
+                    locationWatchId = null;
+                }
+                
+                // تحديث حالة الاتصال
+                if (userType === 'child' && currentUser) {
+                    await db.collection('children').doc(currentUser.uid).update({
+                        isOnline: false,
+                        lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    // تحديث Realtime Database
+                    await database.ref('locations/' + currentUser.uid).update({
+                        isOnline: false,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }
+                
+                // تسجيل الخروج من Firebase Auth
+                await auth.signOut();
+                
+                // إعادة تعيين المتغيرات
+                currentUser = null;
+                userType = null;
+                markers = {};
+                
+                // إعادة تعيين النماذج
+                document.getElementById('parentForm').reset();
+                document.getElementById('childForm').reset();
+                
+                // إخفاء رسائل الخطأ والنجاح
+                document.querySelectorAll('.error, .success').forEach(el => {
+                    el.style.display = 'none';
+                });
+                
+                // إعادة تعيين عناصر واجهة الطفل
+                if (document.getElementById('locationStatus')) {
+                    document.getElementById('locationStatus').textContent = 'جاري تحديد موقعك...';
+                    document.getElementById('locationStatus').classList.add('pulse');
+                    document.getElementById('latitude').textContent = '--';
+                    document.getElementById('longitude').textContent = '--';
+                    document.getElementById('lastUpdate').textContent = '--';
+                    document.getElementById('accuracy').textContent = '--';
+                }
+                
+                showScreen('userTypeScreen');
+                showNotification('تم تسجيل الخروج بنجاح');
+                
+            } catch (error) {
+                console.error('خطأ في تسجيل الخروج:', error);
+                showNotification('حدث خطأ أثناء تسجيل الخروج', true);
+            }
+        }
+
+        // التحقق من حالة المصادقة عند تحميل الصفحة
+        auth.onAuthStateChanged((user) => {
+            if (user && userType === 'parent') {
+                currentUser = user;
+                console.log('المستخدم مسجل دخول:', user);
+            }
+        });
+
+        // تحديث حالة الاتصال عند إغلاق الصفحة
+        window.addEventListener('beforeunload', async () => {
+            if (userType === 'child' && currentUser) {
+                try {
+                    await db.collection('children').doc(currentUser.uid).update({
+                        isOnline: false,
+                        lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    await database.ref('locations/' + currentUser.uid).update({
+                        isOnline: false,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                } catch (error) {
+                    console.error('خطأ في تحديث حالة الاتصال:', error);
+                }
+            }
+        });
+
+        // التعامل مع فقدان الاتصال
+        window.addEventListener('online', () => {
+            if (userType === 'child' && currentUser) {
+                db.collection('children').doc(currentUser.uid).update({
+                    isOnline: true,
+                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(() => {
+                    updateLocationStatus('🔄 تم استعادة الاتصال - جاري تحديث الموقع...', 'info');
+                    // إعادة بدء تتبع الموقع
+                    if (!locationWatchId) {
+                        startLocationTracking(currentUser.uid);
+                    }
+                });
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            if (userType === 'child' && currentUser) {
+                updateLocationStatus('⚠️ لا يوجد اتصال بالإنترنت - سيتم تحديث الموقع عند استعادة الاتصال', 'warning');
+            }
+        });
+
+        // تحديث دوري لحالة الاتصال (كل 30 ثانية)
+        setInterval(() => {
+            if (userType === 'child' && currentUser && navigator.onLine) {
+                db.collection('children').doc(currentUser.uid).update({
+                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+                    isOnline: true
+                }).catch(error => {
+                    console.error('خطأ في التحديث الدوري:', error);
+                });
+                
+                database.ref('locations/' + currentUser.uid).update({
+                    isOnline: true,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                }).catch(error => {
+                    console.error('خطأ في تحديث Realtime Database:', error);
+                });
+            }
+        }, 30000);
+
+        // مراقبة التحديثات الفورية للمواقع (للوالدين)
+        function watchRealtimeLocations() {
+            if (userType !== 'parent' || !currentUser) return;
+            
+            database.ref('locations').on('child_changed', (snapshot) => {
+                const childId = snapshot.key;
+                const locationData = snapshot.val();
+                
+                // التحقق من أن هذا الطفل ينتمي لولي الأمر الحالي
+                db.collection('children').doc(childId).get().then((doc) => {
+                    if (doc.exists && doc.data().parentId === currentUser.uid) {
+                        const child = doc.data();
+                        child.location = {
+                            latitude: locationData.latitude,
+                            longitude: locationData.longitude
+                        };
+                        child.accuracy = locationData.accuracy;
+                        child.isOnline = locationData.isOnline;
+                        
+                        // تحديث العلامة على الخريطة
+                        addChildMarker(childId, child);
+                    }
+                });
+            });
+        }
+
+        // بدء مراقبة التحديثات الفورية عند تسجيل دخول الوالد
+        auth.onAuthStateChanged((user) => {
+            if (user && userType === 'parent') {
+                watchRealtimeLocations();
+            }
+        });
+
+        // إضافة معالج للأخطاء العامة
+        window.addEventListener('error', (e) => {
+            console.error('خطأ في التطبيق:', e.error);
+            showNotification('حدث خطأ غير متوقع', true);
+        });
+
+        // إضافة معالج للوعود المرفوضة
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('وعد مرفوض:', e.reason);
+            showNotification('حدث خطأ في الاتصال', true);
+        });
+
+        // إضافة ميزة الإشعارات المتقدمة
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        console.log('تم منح إذن الإشعارات');
+                    }
+                });
+            }
+        }
+
+        // إرسال إشعار
+        function sendNotification(title, body, icon = null) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: body,
+                    icon: icon || '/favicon.ico',
+                    dir: 'rtl',
+                    lang: 'ar'
+                });
+            }
+        }
+
+        // طلب إذن الإشعارات عند تحميل الصفحة
+        document.addEventListener('DOMContentLoaded', () => {
+            requestNotificationPermission();
+        });
+
+        // إضافة ميزة حفظ البيانات محلياً
+        function saveToLocalStorage(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (error) {
+                console.error('خطأ في حفظ البيانات محلياً:', error);
+            }
+        }
+
+        function getFromLocalStorage(key) {
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : null;
+            } catch (error) {
+                console.error('خطأ في قراءة البيانات المحلية:', error);
+                return null;
+            }
+        }
+
+        // حفظ آخر موقع محلياً
+        function saveLastLocation(childId, location) {
+            saveToLocalStorage(`lastLocation_${childId}`, {
+                ...location,
+                timestamp: Date.now()
+            });
+        }
+
+        // استرجاع آخر موقع محفوظ
+        function getLastLocation(childId) {
+            return getFromLocalStorage(`lastLocation_${childId}`);
+        }
+
+        console.log('تم تحميل التطبيق بنجاح مع تسجيل الدخول بـ Google');
+    </script>
 </body>
 </html>
+
+</html>
+
 
