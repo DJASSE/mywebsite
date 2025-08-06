@@ -1,1863 +1,263 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تطبيق تتبع الأطفال</title>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dpoWcMAoHurN_4&libraries=geometry"></script>
-    
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>تتبع العائلة - الجزائر</title>
 
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            direction: rtl;
-        }
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
-        .screen {
-            display: none;
-            min-height: 100vh;
-        }
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-        .screen.active {
-            display: block;
-        }
+  <!-- خط -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo&display=swap" rel="stylesheet" />
 
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            padding: 20px;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-top: 50px;
-        }
-
-        h1, h2 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-
-        .user-type-buttons {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 15px 30px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-parent {
-            background: linear-gradient(45deg, #4CAF50, #45a049);
-            color: white;
-            flex-direction: column;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 150px;
-        }
-
-        .btn-child {
-            background: linear-gradient(45deg, #2196F3, #1976D2);
-            color: white;
-            flex-direction: column;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 150px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            width: 100%;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        .btn-google {
-            background: #db4437;
-            color: white;
-            width: 100%;
-            margin-top: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .btn-logout {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .header {
-            background: white;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .dashboard-container {
-            display: flex;
-            height: calc(100vh - 80px);
-        }
-
-        .sidebar {
-            width: 300px;
-            background: white;
-            padding: 20px;
-            overflow-y: auto;
-            border-left: 1px solid #ddd;
-        }
-
-        .children-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .child-item {
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-
-        .child-item:hover {
-            background: #e9ecef;
-            transform: translateX(-5px);
-        }
-
-        .child-item.active {
-            background: #667eea;
-            color: white;
-            border-color: #5a6fd8;
-        }
-
-        .child-name {
-            font-weight: bold;
-            font-size: 18px;
-            margin-bottom: 5px;
-        }
-
-        .child-status {
-            font-size: 14px;
-            opacity: 0.8;
-        }
-
-        .map-container {
-            flex: 1;
-            position: relative;
-        }
-
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-
-        .location-status {
-            text-align: center;
-            padding: 30px;
-            background: #f8f9fa;
-            border-radius: 15px;
-            margin: 20px 0;
-        }
-
-        .location-info {
-            margin-top: 20px;
-            text-align: right;
-        }
-
-        .location-info p {
-            margin: 10px 0;
-            font-size: 16px;
-        }
-
-        .location-info span {
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .divider {
-            text-align: center;
-            margin: 20px 0;
-            position: relative;
-        }
-
-        .divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: #ddd;
-        }
-
-        .divider span {
-            background: white;
-            padding: 0 15px;
-            color: #666;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            text-align: center;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            text-align: center;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #4CAF50;
-            color: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            z-index: 1000;
-            transform: translateX(400px);
-            transition: transform 0.3s ease;
-        }
-        
-        .notification.show {
-            transform: translateX(0);
-        }
-        
-        .notification.error {
-            background: #f44336;
-        }
-
-        .google-icon {
-            width: 20px;
-            height: 20px;
-        }
-
-        .auth-mode-toggle {
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .auth-mode-toggle button {
-            background: none;
-            border: none;
-            color: #667eea;
-            text-decoration: underline;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        @media (max-width: 768px) {
-            .dashboard-container {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                height: 200px;
-            }
-            
-            .user-type-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .btn-parent, .btn-child {
-                min-width: 200px;
-            }
-        }
-    </style>
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(135deg, #0099ff, #005f99);
+      color: white;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h1 { margin: 20px 0 10px; }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      border: none;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    input, select {
+      margin: 10px;
+      padding: 10px;
+      border-radius: 15px;
+      border: none;
+      width: 80%;
+      max-width: 300px;
+      font-size: 16px;
+    }
+    #map {
+      height: 400px;
+      margin: 15px auto;
+      max-width: 500px;
+      border-radius: 15px;
+    }
+  </style>
 </head>
 <body>
-    <!-- شاشة اختيار نوع المستخدم -->
-    <div id="userTypeScreen" class="screen active">
-        <div class="container">
-            <h1>مرحباً بك في تطبيق تتبع الأطفال</h1>
-            <div class="user-type-buttons">
-                <button class="btn btn-parent" id="parentBtn">
-                    <span style="font-size: 30px;">👨‍👩‍👧‍👦</span>
-                    ولي أمر
-                </button>
-                <button class="btn btn-child" id="childBtn">
-                    <span style="font-size: 30px;">👶</span>
-                    طفل
-                </button>
-            </div>
-        </div>
-    </div>
 
-    <!-- شاشة تسجيل دخول ولي الأمر -->
-    <div id="parentLoginScreen" class="screen">
-        <div class="container">
-            <h2 id="parentFormTitle">تسجيل دخول ولي الأمر</h2>
-            <div id="parentError" class="error" style="display: none;"></div>
-            <div id="parentSuccess" class="success" style="display: none;"></div>
-            
-            <!-- تسجيل الدخول بـ Google -->
-            <button type="button" class="btn btn-google" id="parentGoogleBtn">
-                <svg class="google-icon" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                تسجيل الدخول بـ Google
-            </button>
-            
-            <div class="divider">
-                <span>أو</span>
-            </div>
-            
-            <form id="parentForm">
-                <div class="form-group">
-                    <label>الاسم الكامل:</label>
-                    <input type="text" id="parentName" required>
-                </div>
-                <div class="form-group">
-                    <label>رقم الهاتف:</label>
-                    <input type="tel" id="parentPhone" required>
-                </div>
-                <div class="form-group">
-                    <label>البريد الإلكتروني:</label>
-                    <input type="email" id="parentEmail" required>
-                </div>
-                <div class="form-group">
-                    <label>كلمة المرور:</label>
-                    <input type="password" id="parentPassword" required>
-                </div>
-                <button type="submit" class="btn btn-primary" id="parentSubmitBtn">تسجيل الدخول</button>
-                <div class="auth-mode-toggle">
-                    <button type="button" id="parentToggleMode">ليس لديك حساب؟ إنشاء حساب جديد</button>
-                </div>
-                <button type="button" class="btn btn-secondary" id="parentBackBtn">رجوع</button>
-            </form>
-        </div>
-    </div>
+<h1>تتبع العائلة - الجزائر</h1>
 
-    <!-- شاشة تسجيل دخول الطفل -->
-    <div id="childLoginScreen" class="screen">
-        <div class="container">
-            <h2>تسجيل دخول الطفل</h2>
-            <div id="childError" class="error" style="display: none;"></div>
-            <div id="childSuccess" class="success" style="display: none;"></div>
-            
-            <!-- تسجيل الدخول بـ Google للطفل -->
-            <button type="button" class="btn btn-google" id="childGoogleBtn">
-                <svg class="google-icon" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                تسجيل الدخول بـ Google
-            </button>
-            
-            <div class="divider">
-                <span>أو</span>
-            </div>
-            
-            <form id="childForm">
-                <div class="form-group">
-                    <label>اسمك:</label>
-                    <input type="text" id="childName" required>
-                </div>
-                <div class="form-group">
-                    <label>رقم هاتفك:</label>
-                    <input type="tel" id="childPhone" required>
-                </div>
-                <div class="form-group">
-                    <label>رقم هاتف ولي الأمر:</label>
-                    <input type="tel" id="parentPhoneForChild" required>
-                </div>
-                <button type="submit" class="btn btn-primary">تسجيل الدخول</button>
-                <button type="button" class="btn btn-secondary" id="childBackBtn">رجوع</button>
-            </form>
-        </div>
-    </div>
+<!-- اختيار الدور -->
+<div id="roleSelect">
+  <h3>اختر دورك:</h3>
+  <button onclick="chooseRole('parent')">أنا ولي أمر 👨‍👧‍👦</button>
+  <button onclick="chooseRole('child')">أنا طفل 🧒</button>
+</div>
 
-    <!-- شاشة ولي الأمر - الخريطة -->
-    <div id="parentDashboard" class="screen">
-        <div class="header">
-            <h2 id="parentWelcome">مرحباً</h2>
-            <button class="btn btn-logout" id="parentLogoutBtn">تسجيل خروج</button>
-        </div>
-        
-        <div class="dashboard-container">
-            <div class="sidebar">
-                <h3>قائمة الأطفال</h3>
-                <div id="childrenList" class="children-list">
-                    <div class="loading">جاري تحميل قائمة الأطفال...</div>
-                </div>
-            </div>
-            
-            <div class="map-container">
-                <div id="map"></div>
-            </div>
-        </div>
-    </div>
+<!-- نموذج ولي الأمر -->
+<div id="parentForm" style="display:none;">
+  <h3>معلومات ولي الأمر</h3>
+  <form onsubmit="submitParentForm(event)">
+    <input type="text" id="parentName" placeholder="اسم ولي الأمر" required />
+    <input type="tel" id="parentPhone" placeholder="رقم الهاتف" required />
+    <input type="text" id="parentArea" placeholder="الحي" required />
+    <button type="submit">حفظ ومتابعة</button>
+  </form>
+</div>
 
-    <!-- شاشة الطفل - مشاركة الموقع -->
-    <div id="childDashboard" class="screen">
-        <div class="container">
-            <h2 id="childWelcome">مرحباً</h2>
-            <div class="location-status">
-                <p id="locationStatus" class="pulse">جاري تحديد موقعك...</p>
-                <div class="location-info">
-                    <p>خط العرض: <span id="latitude">--</span></p>
-                    <p>خط الطول: <span id="longitude">--</span></p>
-                    <p>آخر تحديث: <span id="lastUpdate">--</span></p>
-                    <p>دقة الموقع: <span id="accuracy">--</span> متر</p>
-                </div>
-            </div>
-            <button class="btn btn-logout" id="childLogoutBtn">تسجيل خروج</button>
-        </div>
-    </div>
+<!-- نموذج الطفل -->
+<div id="childForm" style="display:none;">
+  <h3>معلومات الطفل</h3>
+  <form onsubmit="submitChildForm(event)">
+    <input type="text" id="childName" placeholder="اسم الطفل" required />
+    <input type="tel" id="childPhone" placeholder="رقم الطفل" required />
+    <input type="text" id="childParentName" placeholder="اسم ولي أمرك" required />
+    <input type="tel" id="childParentPhone" placeholder="رقم ولي أمرك" required />
+    <button type="submit">ابدأ تتبع الموقع</button>
+  </form>
+</div>
 
-    <script>
-        // المتغيرات العامة
-        let map;
-        let markers = {};
-        let currentUser = null;
-        let userType = null;
-        let locationWatchId = null;
-        let isSignUpMode = false; // للتبديل بين تسجيل الدخول وإنشاء حساب
+<!-- خريطة ولي الأمر -->
+<div id="parentMapSection" style="display:none;">
+  <h3>أطفالك على الخريطة</h3>
+  <select id="childList" onchange="focusOnSelectedChild()"></select>
+  <div id="map"></div>
+</div>
 
-        // إعداد Firebase مع معلوماتك
-        const firebaseConfig = {
-            apiKey: "AIzaSyCwuWnFl3cGetmrNlWxcU5NT_mHQQzkEqo",
-            authDomain: "familytracker-77ec8.firebaseapp.com",
-            databaseURL: "https://familytracker-77ec8-default-rtdb.firebaseio.com",
-            projectId: "familytracker-77ec8",
-            storageBucket: "familytracker-77ec8.firebasestorage.app",
-            messagingSenderId: "527698679661",
-            appId: "1:527698679661:web:af62a9327797646c3c2c64",
-            measurementId: "G-B8ZYB634DN"
-        };
+<script>
+  // إعداد Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyCwuWnFl3cGetmrNlWxcU5NT_mHQQzkEqo",
+    authDomain: "familytracker-77ec8.firebaseapp.com",
+    databaseURL: "https://familytracker-77ec8-default-rtdb.firebaseio.com",
+    projectId: "familytracker-77ec8",
+    storageBucket: "familytracker-77ec8.appspot.com",
+    messagingSenderId: "527698679661",
+    appId: "1:527698679661:web:af62a9327797646c3c2c64"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-        // تهيئة Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-        const database = firebase.database();
+  let userRole = null;
+  let map = null;
+  let markers = {};
+  let currentParentPhone = "";
 
-        // إعداد Google Auth Provider
-        const googleProvider = new firebase.auth.GoogleAuthProvider();
-        googleProvider.addScope('profile');
-        googleProvider.addScope('email');
+  function chooseRole(role) {
+    userRole = role;
+    document.getElementById("roleSelect").style.display = "none";
+    if (role === 'parent') {
+      document.getElementById("parentForm").style.display = "block";
+    } else {
+      document.getElementById("childForm").style.display = "block";
+    }
+  }
 
-        // عرض الشاشات
-        function showScreen(screenId) {
-            console.log('عرض الشاشة:', screenId);
-            document.querySelectorAll('.screen').forEach(screen => {
-                screen.classList.remove('active');
-            });
-            document.getElementById(screenId).classList.add('active');
+  function submitParentForm(e) {
+    e.preventDefault();
+    const name = document.getElementById("parentName").value.trim();
+    const phone = document.getElementById("parentPhone").value.trim();
+    const area = document.getElementById("parentArea").value.trim();
+
+    if (!name || !phone || !area) {
+      alert("يرجى ملء كل المعلومات");
+      return;
+    }
+
+    currentParentPhone = phone;
+
+    db.ref("parents/" + phone).set({
+      name,
+      phone,
+      area
+    });
+
+    document.getElementById("parentForm").style.display = "none";
+    document.getElementById("parentMapSection").style.display = "block";
+    initMap();
+    loadChildren(phone);
+  }
+
+  function submitChildForm(e) {
+    e.preventDefault();
+    const name = document.getElementById("childName").value.trim();
+    const phone = document.getElementById("childPhone").value.trim();
+    const parentName = document.getElementById("childParentName").value.trim();
+    const parentPhone = document.getElementById("childParentPhone").value.trim();
+
+    if (!name || !phone || !parentName || !parentPhone) {
+      alert("يرجى ملء كل المعلومات");
+      return;
+    }
+
+    // التحقق من وجود الولي
+    db.ref("parents/" + parentPhone).once("value", (snapshot) => {
+      if (snapshot.exists()) {
+        const parent = snapshot.val();
+        if (normalize(parent.name) === normalize(parentName)) {
+          const childRef = db.ref("children/" + phone);
+          childRef.set({
+            name,
+            phone,
+            parentPhone,
+            parentName
+          });
+          startTrackingLocation(childRef);
+          document.getElementById("childForm").style.display = "none";
+          alert("تم ربط الطفل بولي الأمر ويجري الآن تتبع الموقع.");
+        } else {
+          alert("اسم ولي الأمر لا يطابق الاسم المسجل.");
         }
+      } else {
+        alert("رقم ولي الأمر غير موجود في النظام.");
+      }
+    });
+  }
 
-        // عرض رسائل الخطأ والنجاح
-        function showMessage(elementId, message, isError = true) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.textContent = message;
-                element.style.display = 'block';
-                setTimeout(() => {
-                    element.style.display = 'none';
-                }, 5000);
-            }
-        }
+  function normalize(str) {
+    return str.trim().toLowerCase().replace(/\s+/g, " ");
+  }
 
-        // دالة لعرض الإشعارات
-        function showNotification(message, isError = false) {
-            const notification = document.createElement('div');
-            notification.className = `notification ${isError ? 'error' : ''}`;
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.classList.add('show');
-            }, 100);
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => {
-                    notification.remove();
-                }, 300);
-            }, 3000);
-        }
+  function startTrackingLocation(ref) {
+    if (!navigator.geolocation) {
+      alert("متصفحك لا يدعم تحديد الموقع");
+      return;
+    }
 
-        // تحديث واجهة التبديل بين تسجيل الدخول وإنشاء الحساب
-        function updateAuthMode() {
-            const title = document.getElementById('parentFormTitle');
-            const submitBtn = document.getElementById('parentSubmitBtn');
-            const toggleBtn = document.getElementById('parentToggleMode');
-            
-            if (isSignUpMode) {
-                title.textContent = 'إنشاء حساب ولي أمر جديد';
-                submitBtn.textContent = 'إنشاء حساب';
-                toggleBtn.textContent = 'لديك حساب بالفعل؟ تسجيل الدخول';
-            } else {
-                title.textContent = 'تسجيل دخول ولي الأمر';
-                submitBtn.textContent = 'تسجيل الدخول';
-                toggleBtn.textContent = 'ليس لديك حساب؟ إنشاء حساب جديد';
-            }
-        }
-
-        // تحديث حالة الموقع
-        function updateLocationStatus(message, type = 'info') {
-            const statusElement = document.getElementById('locationStatus');
-            if (statusElement) {
-                statusElement.textContent = message;
-                statusElement.className = 'pulse';
-                
-                switch(type) {
-                    case 'success':
-                        statusElement.style.color = '#4CAF50';
-                        statusElement.classList.remove('pulse');
-                        break;
-                    case 'error':
-                        statusElement.style.color = '#f44336';
-                        statusElement.classList.remove('pulse');
-                        break;
-                    case 'warning':
-                        statusElement.style.color = '#ff9800';
-                        statusElement.classList.remove('pulse');
-                        break;
-                    default:
-                        statusElement.style.color = '#333';
-                        break;
-                }
-            }
-        }
-
-        // تهيئة الأحداث عند تحميل الصفحة
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('تم تحميل الصفحة');
-
-            // أزرار الشاشة الرئيسية
-            document.getElementById('parentBtn')?.addEventListener('click', () => {
-                showScreen('parentLoginScreen');
-            });
-
-            document.getElementById('childBtn')?.addEventListener('click', () => {
-                showScreen('childLoginScreen');
-            });
-
-            // أزرار الرجوع
-            document.getElementById('parentBackBtn')?.addEventListener('click', () => {
-                showScreen('userTypeScreen');
-            });
-
-            document.getElementById('childBackBtn')?.addEventListener('click', () => {
-                showScreen('userTypeScreen');
-            });
-
-            // أزرار تسجيل الخروج
-            document.getElementById('parentLogoutBtn')?.addEventListener('click', logout);
-            document.getElementById('childLogoutBtn')?.addEventListener('click', logout);
-
-            // أزرار Google
-            document.getElementById('parentGoogleBtn')?.addEventListener('click', () => signInWithGoogle('parent'));
-            document.getElementById('childGoogleBtn')?.addEventListener('click', () => signInWithGoogle('child'));
-
-            // زر التبديل بين تسجيل الدخول وإنشاء الحساب
-            document.getElementById('parentToggleMode')?.addEventListener('click', () => {
-                isSignUpMode = !isSignUpMode;
-                updateAuthMode();
-                // إخفاء رسائل الخطأ
-                document.getElementById('parentError').style.display = 'none';
-                document.getElementById('parentSuccess').style.display = 'none';
-            });
+    navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        ref.update({
+          lat: latitude,
+          lng: longitude,
+          lastUpdated: Date.now()
         });
+      },
+      (err) => {
+        alert("خطأ في تحديد الموقع: " + err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 10000
+      }
+    );
+  }
 
-        // تسجيل الدخول بـ Google
-        async function signInWithGoogle(type) {
-            try {
-                console.log('محاولة تسجيل الدخول بـ Google للنوع:', type);
-                
-                const result = await auth.signInWithPopup(googleProvider);
-                const user = result.user;
-                
-                console.log('تم تسجيل الدخول بـ Google بنجاح:', user);
-                
-                currentUser = user;
-                userType = type;
-                
-                if (type === 'parent') {
-                    // حفظ بيانات ولي الأمر
-                    await db.collection('parents').doc(user.uid).set({
-                        name: user.displayName,
-                        email: user.email,
-                        phone: user.phoneNumber || '',
-                        photoURL: user.photoURL,
-                        provider: 'google',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-                    
-                    showMessage('parentSuccess', 'تم تسجيل الدخول بـ Google بنجاح', false);
-                    document.getElementById('parentWelcome').textContent = `مرحباً ${user.displayName}`;
-                    
-                    setTimeout(() => {
-                        showScreen('parentDashboard');
-                        initMap();
-                        loadChildren();
-                    }, 1000);
-                    
-                } else if (type === 'child') {
-                    // للطفل، نحتاج لربطه بولي الأمر
-                    showChildGoogleSetup(user);
-                }
-                
-            } catch (error) {
-                console.error('خطأ في تسجيل الدخول بـ Google:', error);
-                const errorElementId = type === 'parent' ? 'parentError' : 'childError';
-                
-                let errorMessage = 'خطأ في تسجيل الدخول بـ Google: ';
-                if (error.code === 'auth/popup-closed-by-user') {
-                    errorMessage = 'تم إلغاء تسجيل الدخول';
-                } else if (error.code === 'auth/popup-blocked') {
-                    errorMessage = 'تم حظر النافذة المنبثقة. يرجى السماح بالنوافذ المنبثقة';
-                } else {
-                    errorMessage += error.message;
-                }
-                
-                showMessage(errorElementId, errorMessage);
-            }
+  function initMap() {
+    if (map) return;
+    map = L.map("map").setView([36.75, 3.06], 6);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+  }
+
+  function loadChildren(parentPhone) {
+    db.ref("children").on("value", (snapshot) => {
+      const data = snapshot.val();
+      const childList = document.getElementById("childList");
+      childList.innerHTML = "";
+      markers = {};
+
+      for (const key in data) {
+        const child = data[key];
+        if (child.parentPhone === parentPhone && child.lat && child.lng) {
+          const option = document.createElement("option");
+          option.value = key;
+          option.textContent = child.name;
+          childList.appendChild(option);
+
+          const marker = L.marker([child.lat, child.lng])
+            .addTo(map)
+            .bindPopup(`<b>${child.name}</b><br>📞 ${child.phone}`);
+          markers[key] = marker;
         }
+      }
 
-        // إعداد الطفل بعد تسجيل الدخول بـ Google
-        function showChildGoogleSetup(user) {
-            const parentPhone = prompt('يرجى إدخال رقم هاتف ولي الأمر:');
-            if (!parentPhone) {
-                showMessage('childError', 'يجب إدخال رقم هاتف ولي الأمر');
-                return;
-            }
-            
-            setupChildWithGoogle(user, parentPhone);
-        }
+      if (childList.options.length > 0) {
+        focusOnSelectedChild();
+      }
+    });
+  }
 
-        // إعداد الطفل مع Google
-        async function setupChildWithGoogle(user, parentPhone) {
-            try {
-                // البحث عن ولي الأمر
-                const parentQuery = await db.collection('parents')
-                    .where('phone', '==', parentPhone)
-                    .get();
-                
-                if (parentQuery.empty) {
-                    showMessage('childError', 'لم يتم العثور على ولي الأمر بهذا الرقم');
-                    return;
-                }
-                
-                const parentDoc = parentQuery.docs[0];
-                const parentId = parentDoc.id;
-                
-                // حفظ بيانات الطفل
-                const childData = {
-                    name: user.displayName,
-                    email: user.email,
-                    phone: user.phoneNumber || '',
-                    photoURL: user.photoURL,
-                    parentId: parentId,
-                    provider: 'google',
-                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-                    isOnline: true
-                };
-                
-                await db.collection('children').doc(user.uid).set(childData, { merge: true });
-                
-                currentUser = { uid: user.uid, name: user.displayName };
-                showMessage('childSuccess', 'تم تسجيل الدخول بـ Google بنجاح', false);
-                document.getElementById('childWelcome').textContent = `مرحباً ${user.displayName}`;
-                
-                setTimeout(() => {
-                    showScreen('childDashboard');
-                    startLocationTracking(user.uid);
-                }, 1000);
-                
-            } catch (error) {
-                console.error('خطأ في إعداد الطفل:', error);
-                showMessage('childError', 'خطأ في ربط الحساب: ' + error.message);
-            }
-        }
+  function focusOnSelectedChild() {
+    const uid = document.getElementById("childList").value;
+    if (!markers[uid]) return;
+    map.setView(markers[uid].getLatLng(), 15);
+    markers[uid].openPopup();
+  }
+</script>
 
-        // تسجيل دخول ولي الأمر بالبريد الإلكتروني
-        document.getElementById('parentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            console.log('محاولة تسجيل دخول ولي الأمر');
-            
-            const name = document.getElementById('parentName').value;
-            const phone = document.getElementById('parentPhone').value;
-            const email = document.getElementById('parentEmail').value;
-            const password = document.getElementById('parentPassword').value;
-            
-            try {
-                let userCredential;
-                
-                if (isSignUpMode) {
-                    // إنشاء حساب جديد
-                    try {
-                        userCredential = await auth.createUserWithEmailAndPassword(email, password);
-                        
-                        // حفظ بيانات ولي الأمر
-                        await db.collection('parents').doc(userCredential.user.uid).set({
-                            name: name,
-                            phone: phone,
-                            email: email,
-                            provider: 'email',
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        
-                        showMessage('parentSuccess', 'تم إنشاء الحساب بنجاح', false);
-                        
-                    } catch (signUpError) {
-                        if (signUpError.code === 'auth/email-already-in-use') {
-                            showMessage('parentError', 'البريد الإلكتروني مستخدم بالفعل. يرجى تسجيل الدخول بدلاً من إنشاء حساب جديد.');
-                            return;
-                        } else if (signUpError.code === 'auth/weak-password') {
-                            showMessage('parentError', 'كلمة المرور ضعيفة. يجب أن تكون 6 أحرف على الأقل.');
-                            return;
-                        } else if (signUpError.code === 'auth/invalid-email') {
-                            showMessage('parentError', 'البريد الإلكتروني غير صحيح.');
-                            return;
-                        } else {
-                            throw signUpError;
-                        }
-                    }
-                } else {
-                    // تسجيل الدخول
-                    try {
-                        userCredential = await auth.signInWithEmailAndPassword(email, password);
-                        
-                        // تحديث البيانات إذا لزم الأمر
-                        await db.collection('parents').doc(userCredential.user.uid).set({
-                            name: name,
-                            phone: phone,
-                            email: email,
-                            provider: 'email',
-                            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-                        }, { merge: true });
-                        
-                        showMessage('parentSuccess', 'تم تسجيل الدخول بنجاح', false);
-                        
-                    } catch (signInError) {
-                        if (signInError.code === 'auth/user-not-found') {
-                            showMessage('parentError', 'لا يوجد حساب بهذا البريد الإلكتروني. يرجى إنشاء حساب جديد.');
-                            return;
-                        } else if (signInError.code === 'auth/wrong-password') {
-                            showMessage('parentError', 'كلمة المرور غير صحيحة.');
-                            return;
-                        } else if (signInError.code === 'auth/invalid-email') {
-                            showMessage('parentError', 'البريد الإلكتروني غير صحيح.');
-                            return;
-                        } else if (signInError.code === 'auth/too-many-requests') {
-                            showMessage('parentError', 'تم تجاوز عدد المحاولات المسموح. يرجى المحاولة لاحقاً.');
-                            return;
-                        } else {
-                            throw signInError;
-                        }
-                    }
-                }
-                
-                currentUser = userCredential.user;
-                userType = 'parent';
-                
-                document.getElementById('parentWelcome').textContent = `مرحباً ${name}`;
-                
-                setTimeout(() => {
-                    showScreen('parentDashboard');
-                    initMap();
-                    loadChildren();
-                }, 1000);
-                
-            } catch (error) {
-                console.error('خطأ في تسجيل الدخول:', error);
-                let errorMessage = 'خطأ في تسجيل الدخول: ';
-                
-                if (error.code === 'auth/network-request-failed') {
-                    errorMessage = 'خطأ في الاتصال بالإنترنت. يرجى التحقق من الاتصال والمحاولة مرة أخرى.';
-                } else if (error.code === 'auth/invalid-credential') {
-                    errorMessage = 'بيانات الدخول غير صحيحة.';
-                } else {
-                    errorMessage += error.message;
-                }
-                
-                showMessage('parentError', errorMessage);
-            }
-        });
-
-        // تسجيل دخول الطفل بالبيانات العادية
-        document.getElementById('childForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            console.log('محاولة تسجيل دخول الطفل');
-            
-            const childName = document.getElementById('childName').value;
-            const childPhone = document.getElementById('childPhone').value;
-            const parentPhone = document.getElementById('parentPhoneForChild').value;
-            
-            try {
-                // البحث عن ولي الأمر
-                const parentQuery = await db.collection('parents')
-                    .where('phone', '==', parentPhone)
-                    .get();
-                
-                if (parentQuery.empty) {
-                    showMessage('childError', 'لم يتم العثور على ولي الأمر بهذا الرقم');
-                    return;
-                }
-                
-                const parentDoc = parentQuery.docs[0];
-                const parentId = parentDoc.id;
-                
-                const childData = {
-                    name: childName,
-                    phone: childPhone,
-                    parentId: parentId,
-                    provider: 'manual',
-                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-                    isOnline: true
-                };
-                
-                // البحث عن الطفل الموجود أو إنشاء جديد
-                const childQuery = await db.collection('children')
-                    .where('phone', '==', childPhone)
-                    .where('parentId', '==', parentId)
-                    .get();
-                
-                let childId;
-                if (childQuery.empty) {
-                    const childRef = await db.collection('children').add(childData);
-                    childId = childRef.id;
-                } else {
-                    childId = childQuery.docs[0].id;
-                    await db.collection('children').doc(childId).update(childData);
-                }
-                
-                currentUser = { uid: childId, name: childName };
-                userType = 'child';
-                
-                showMessage('childSuccess', 'تم تسجيل الدخول بنجاح', false);
-                document.getElementById('childWelcome').textContent = `مرحباً ${childName}`;
-                
-                setTimeout(() => {
-                    showScreen('childDashboard');
-                    startLocationTracking(childId);
-                }, 1000);
-                
-            } catch (error) {
-                console.error('خطأ في تسجيل دخول الطفل:', error);
-                let errorMessage = 'خطأ في تسجيل الدخول: ';
-                
-                if (error.code === 'permission-denied') {
-                    errorMessage = 'ليس لديك صلاحية للوصول. يرجى التحقق من البيانات.';
-                } else if (error.code === 'unavailable') {
-                    errorMessage = 'الخدمة غير متوفرة حالياً. يرجى المحاولة لاحقاً.';
-                } else {
-                    errorMessage += error.message;
-                }
-                
-                showMessage('childError', errorMessage);
-            }
-        });
-
-        // تهيئة الخريطة
-        function initMap() {
-            console.log('تهيئة الخريطة');
-            
-            if (typeof google === 'undefined' || !google.maps) {
-                console.error('Google Maps API غير محملة');
-                showNotification('خطأ في تحميل الخريطة', true);
-                return;
-            }
-            
-            try {
-                map = new google.maps.Map(document.getElementById('map'), {
-                    zoom: 13,
-                    center: { lat: 24.7136, lng: 46.6753 }, // الرياض
-                    mapTypeId: 'roadmap',
-                    styles: [
-                        {
-                            featureType: 'poi',
-                            elementType: 'labels',
-                            stylers: [{ visibility: 'off' }]
-                        }
-                    ]
-                });
-                
-                console.log('تم تهيئة الخريطة بنجاح');
-            } catch (error) {
-                console.error('خطأ في تهيئة الخريطة:', error);
-                showNotification('خطأ في تهيئة الخريطة', true);
-            }
-        }
-
-        // تحميل قائمة الأطفال
-        function loadChildren() {
-            if (!currentUser || userType !== 'parent') return;
-            
-            console.log('تحميل قائمة الأطفال');
-            const childrenList = document.getElementById('childrenList');
-            
-            // إضافة مستمع للتحديثات الفورية
-            const unsubscribe = db.collection('children')
-                .where('parentId', '==', currentUser.uid)
-                .onSnapshot((snapshot) => {
-                    childrenList.innerHTML = '';
-                    markers = {};
-                    
-                    if (snapshot.empty) {
-                        childrenList.innerHTML = '<div class="loading">لا توجد أطفال مسجلين بعد</div>';
-                        return;
-                    }
-                    
-                    snapshot.forEach((doc) => {
-                        const child = doc.data();
-                        const childId = doc.id;
-                        
-                        const childItem = document.createElement('div');
-                        childItem.className = 'child-item';
-                        
-                        const lastUpdateText = child.lastUpdate ? 
-                            new Date(child.lastUpdate.toDate()).toLocaleString('ar-SA') : 
-                            'لم يتم التحديث بعد';
-                        
-                        const providerIcon = child.provider === 'google' ? '📧' : '📱';
-                        const providerText = child.provider === 'google' ? 'Google' : 'يدوي';
-                        
-                        childItem.innerHTML = `
-                            <div class="child-name">${child.name}</div>
-                            <div class="child-status">${child.isOnline ? '🟢 متصل' : '🔴 غير متصل'}</div>
-                            <div style="font-size: 12px; margin-top: 5px;">
-                                آخر تحديث: ${lastUpdateText}
-                            </div>
-                            <div style="font-size: 10px; color: #666; margin-top: 3px;">
-                                ${providerIcon} ${providerText}
-                            </div>
-                        `;
-                        
-                        childItem.addEventListener('click', () => {
-                            focusOnChild(childId, child);
-                            document.querySelectorAll('.child-item').forEach(item => {
-                                item.classList.remove('active');
-                            });
-                            childItem.classList.add('active');
-                        });
-                        
-                        childrenList.appendChild(childItem);
-                        
-                        if (child.location) {
-                            addChildMarker(childId, child);
-                        }
-                    });
-                }, (error) => {
-                    console.error('خطأ في تحميل الأطفال:', error);
-                    childrenList.innerHTML = '<div class="loading" style="color: red;">خطأ في تحميل البيانات</div>';
-                });
-        }
-
-        // إضافة علامة الطفل على الخريطة
-        function addChildMarker(childId, child) {
-            if (!child.location || !map) return;
-            
-            try {
-                const position = {
-                    lat: child.location.latitude,
-                    lng: child.location.longitude
-                };
-                
-                // إزالة العلامة القديمة إن وجدت
-                if (markers[childId]) {
-                    markers[childId].setMap(null);
-                }
-                
-                const marker = new google.maps.Marker({
-                    position: position,
-                    map: map,
-                    title: child.name,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 15,
-                        fillColor: child.isOnline ? '#4CAF50' : '#f44336',
-                        fillOpacity: 1,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 3
-                    }
-                });
-                
-                const providerText = child.provider === 'google' ? 'تم تسجيل الدخول بـ Google' : 'تسجيل دخول يدوي';
-                
-                const infoWindow = new google.maps.InfoWindow({
-                    content: `
-                        <div style="text-align: center; direction: rtl; font-family: Arial;">
-                            <h3 style="margin: 0 0 10px 0; color: #333;">${child.name}</h3>
-                            <p style="margin: 5px 0;"><strong>الحالة:</strong> ${child.isOnline ? '🟢 متصل' : '🔴 غير متصل'}</p>
-                            <p style="margin: 5px 0;"><strong>آخر تحديث:</strong><br>${child.lastUpdate ? new Date(child.lastUpdate.toDate()).toLocaleString('ar-SA') : 'غير محدد'}</p>
-                            <p style="margin: 5px 0; font-size: 12px; color: #666;">
-                                <strong>الإحداثيات:</strong><br>
-                                ${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}
-                            </p>
-                            ${child.accuracy ? `<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>دقة الموقع:</strong> ${Math.round(child.accuracy)} متر</p>` : ''}
-                            <p style="margin: 5px 0; font-size: 10px; color: #4285f4;">${providerText}</p>
-                        </div>
-                    `
-                });
-                
-                marker.addListener('click', () => {
-                    // إغلاق جميع النوافذ المفتوحة
-                    Object.values(markers).forEach(m => {
-                        if (m.infoWindow) {
-                            m.infoWindow.close();
-                        }
-                    });
-                    infoWindow.open(map, marker);
-                });
-                
-                marker.infoWindow = infoWindow;
-                markers[childId] = marker;
-                
-            } catch (error) {
-                console.error('خطأ في إضافة علامة الطفل:', error);
-            }
-        }
-
-        // التركيز على طفل معين
-        function focusOnChild(childId, child) {
-            if (child.location && map) {
-                const position = {
-                    lat: child.location.latitude,
-                    lng: child.location.longitude
-                };
-                
-                map.setCenter(position);
-                map.setZoom(16);
-                
-                if (markers[childId]) {
-                    google.maps.event.trigger(markers[childId], 'click');
-                }
-            } else {
-                showNotification('موقع هذا الطفل غير متوفر حالياً', true);
-            }
-        }
-
-        // بدء تتبع موقع الطفل
-        function startLocationTracking(childId) {
-            console.log('بدء تتبع الموقع للطفل:', childId);
-            
-            if (!navigator.geolocation) {
-                updateLocationStatus('المتصفح لا يدعم تحديد الموقع', 'error');
-                return;
-            }
-            
-            updateLocationStatus('جاري طلب إذن الوصول للموقع...', 'info');
-            
-            const options = {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 30000
-            };
-            
-            // طلب الإذن أولاً
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    updateLocationStatus('تم الحصول على الإذن - بدء التتبع...', 'info');
-                    
-                    // بدء التتبع المستمر
-                    locationWatchId = navigator.geolocation.watchPosition(
-                        (position) => {
-                            const lat = position.coords.latitude;
-                            const lng = position.coords.longitude;
-                            const accuracy = position.coords.accuracy;
-                            
-                            console.log('تحديث الموقع:', lat, lng);
-                            
-                            // حفظ في Firestore
-                            db.collection('children').doc(childId).update({
-                                location: new firebase.firestore.GeoPoint(lat, lng),
-                                lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-                                isOnline: true,
-                                accuracy: accuracy
-                            }).then(() => {
-                                updateLocationStatus('✅ تم تحديث موقعك بنجاح', 'success');
-                                
-                                // تحديث واجهة المستخدم
-                                document.getElementById('latitude').textContent = lat.toFixed(6);
-                                document.getElementById('longitude').textContent = lng.toFixed(6);
-                                document.getElementById('lastUpdate').textContent = new Date().toLocaleString('ar-SA');
-                                document.getElementById('accuracy').textContent = Math.round(accuracy);
-                                
-                                showNotification('تم تحديث الموقع بنجاح');
-                                
-                            }).catch((error) => {
-                                console.error('خطأ في حفظ الموقع:', error);
-                                updateLocationStatus('❌ خطأ في حفظ الموقع', 'error');
-                                showNotification('خطأ في حفظ الموقع', true);
-                            });
-
-                            // حفظ في Realtime Database للتحديثات الفورية
-                            database.ref('locations/' + childId).set({
-                                latitude: lat,
-                                longitude: lng,
-                                accuracy: accuracy,
-                                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                                isOnline: true
-                            }).catch((error) => {
-                                console.error('خطأ في Realtime Database:', error);
-                            });
-                        },
-                        (error) => {
-                            console.error('خطأ في تتبع الموقع:', error);
-                            let errorMessage = 'خطأ في تحديد الموقع: ';
-                            
-                            switch(error.code) {
-                                case error.PERMISSION_DENIED:
-                                    errorMessage += 'تم رفض الإذن لتحديد الموقع';
-                                    break;
-                                case error.POSITION_UNAVAILABLE:
-                                    errorMessage += 'معلومات الموقع غير متوفرة';
-                                    break;
-                                case error.TIMEOUT:
-                                    errorMessage += 'انتهت مهلة طلب تحديد الموقع';
-                                    break;
-                                default:
-                                    errorMessage += 'خطأ غير معروف';
-                                    break;
-                            }
-                            
-                            updateLocationStatus(errorMessage, 'error');
-                            showNotification(errorMessage, true);
-                        },
-                        options
-                    );
-                },
-                (error) => {
-                    console.error('خطأ في طلب الإذن:', error);
-                    updateLocationStatus('يرجى السماح بالوصول للموقع لتتمكن من المتابعة', 'warning');
-                    showNotification('يرجى السماح بالوصول للموقع', true);
-                },
-                options
-            );
-        }
-
-        // تسجيل الخروج
-        async function logout() {
-            try {
-                console.log('بدء عملية تسجيل الخروج');
-                
-                // إيقاف تتبع الموقع
-                if (locationWatchId) {
-                    navigator.geolocation.clearWatch(locationWatchId);
-                    locationWatchId = null;
-                    console.log('تم إيقاف تتبع الموقع');
-                }
-                
-                // تحديث حالة الاتصال للطفل
-                if (userType === 'child' && currentUser) {
-                    try {
-                        await db.collection('children').doc(currentUser.uid).update({
-                            isOnline: false,
-                            lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        
-                        // تحديث Realtime Database
-                        await database.ref('locations/' + currentUser.uid).update({
-                            isOnline: false,
-                            timestamp: firebase.database.ServerValue.TIMESTAMP
-                        });
-                        
-                        console.log('تم تحديث حالة الاتصال');
-                    } catch (error) {
-                        console.error('خطأ في تحديث حالة الاتصال:', error);
-                    }
-                }
-                
-                // تسجيل الخروج من Firebase Auth (إذا كان مسجلاً)
-                if (auth.currentUser) {
-                    await auth.signOut();
-                    console.log('تم تسجيل الخروج من Firebase Auth');
-                }
-                
-                // إعادة تعيين المتغيرات
-                currentUser = null;
-                userType = null;
-                markers = {};
-                isSignUpMode = false;
-                
-                // إعادة تعيين النماذج
-                document.getElementById('parentForm').reset();
-                document.getElementById('childForm').reset();
-                
-                // إخفاء رسائل الخطأ والنجاح
-                document.querySelectorAll('.error, .success').forEach(el => {
-                    el.style.display = 'none';
-                });
-                
-                // إعادة تعيين واجهة ولي الأمر
-                updateAuthMode();
-                
-                // إعادة تعيين عناصر واجهة الطفل
-                if (document.getElementById('locationStatus')) {
-                    document.getElementById('locationStatus').textContent = 'جاري تحديد موقعك...';
-                    document.getElementById('locationStatus').classList.add('pulse');
-                    document.getElementById('locationStatus').style.color = '#333';
-                    document.getElementById('latitude').textContent = '--';
-                    document.getElementById('longitude').textContent = '--';
-                    document.getElementById('lastUpdate').textContent = '--';
-                    document.getElementById('accuracy').textContent = '--';
-                }
-                
-                // العودة للشاشة الرئيسية
-                showScreen('userTypeScreen');
-                showNotification('تم تسجيل الخروج بنجاح');
-                
-                console.log('تم تسجيل الخروج بنجاح');
-                
-            } catch (error) {
-                console.error('خطأ في تسجيل الخروج:', error);
-                showNotification('حدث خطأ أثناء تسجيل الخروج', true);
-            }
-        }
-
-        // التحقق من حالة المصادقة عند تحميل الصفحة
-        auth.onAuthStateChanged((user) => {
-            if (user && userType === 'parent') {
-                currentUser = user;
-                console.log('المستخدم مسجل دخول:', user.email);
-            }
-        });
-
-        // مراقبة التحديثات الفورية للمواقع (للوالدين)
-        function watchRealtimeLocations() {
-            if (userType !== 'parent' || !currentUser) return;
-            
-            console.log('بدء مراقبة التحديثات الفورية');
-            
-            database.ref('locations').on('child_changed', (snapshot) => {
-                const childId = snapshot.key;
-                const locationData = snapshot.val();
-                
-                console.log('تحديث موقع فوري للطفل:', childId);
-                
-                // التحقق من أن هذا الطفل ينتمي لولي الأمر الحالي
-                db.collection('children').doc(childId).get().then((doc) => {
-                    if (doc.exists && doc.data().parentId === currentUser.uid) {
-                        const child = doc.data();
-                        child.location = {
-                            latitude: locationData.latitude,
-                            longitude: locationData.longitude
-                        };
-                        child.accuracy = locationData.accuracy;
-                        child.isOnline = locationData.isOnline;
-                        
-                        // تحديث العلامة على الخريطة
-                        addChildMarker(childId, child);
-                    }
-                }).catch((error) => {
-                    console.error('خطأ في جلب بيانات الطفل:', error);
-                });
-            });
-        }
-
-        // بدء مراقبة التحديثات الفورية عند تسجيل دخول الوالد
-        auth.onAuthStateChanged((user) => {
-            if (user && userType === 'parent') {
-                setTimeout(() => {
-                    watchRealtimeLocations();
-                }, 1000);
-            }
-        });
-
-        // التعامل مع تغيير حالة الاتصال
-        window.addEventListener('online', () => {
-            console.log('تم استعادة الاتصال بالإنترنت');
-            if (userType === 'child' && currentUser) {
-                db.collection('children').doc(currentUser.uid).update({
-                    isOnline: true,
-                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-                }).then(() => {
-                    updateLocationStatus('🔄 تم استعادة الاتصال - جاري تحديث الموقع...', 'info');
-                    // إعادة بدء تتبع الموقع إذا لم يكن يعمل
-                    if (!locationWatchId) {
-                        startLocationTracking(currentUser.uid);
-                    }
-                }).catch((error) => {
-                    console.error('خطأ في تحديث حالة الاتصال:', error);
-                });
-            }
-            showNotification('تم استعادة الاتصال بالإنترنت');
-        });
-
-        window.addEventListener('offline', () => {
-            console.log('فقدان الاتصال بالإنترنت');
-            if (userType === 'child' && currentUser) {
-                updateLocationStatus('⚠️ لا يوجد اتصال بالإنترنت - سيتم تحديث الموقع عند استعادة الاتصال', 'warning');
-            }
-            showNotification('فقدان الاتصال بالإنترنت', true);
-        });
-
-        // تحديث دوري لحالة الاتصال (كل 30 ثانية)
-        setInterval(() => {
-            if (userType === 'child' && currentUser && navigator.onLine) {
-                db.collection('children').doc(currentUser.uid).update({
-                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-                    isOnline: true
-                }).catch(error => {
-                    console.error('خطأ في التحديث الدوري:', error);
-                });
-                
-                database.ref('locations/' + currentUser.uid).update({
-                    isOnline: true,
-                    timestamp: firebase.database.ServerValue.TIMESTAMP
-                }).catch(error => {
-                    console.error('خطأ في تحديث Realtime Database:', error);
-                });
-            }
-        }, 30000);
-
-        // تحديث حالة الاتصال عند إغلاق الصفحة
-        window.addEventListener('beforeunload', async () => {
-            if (userType === 'child' && currentUser) {
-                try {
-                    await db.collection('children').doc(currentUser.uid).update({
-                        isOnline: false,
-                        lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    
-                    await database.ref('locations/' + currentUser.uid).update({
-                        isOnline: false,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                    });
-                } catch (error) {
-                    console.error('خطأ في تحديث حالة الاتصال عند الإغلاق:', error);
-                }
-            }
-        });
-
-        // معالجة الأخطاء العامة
-        window.addEventListener('error', (e) => {
-            console.error('خطأ في التطبيق:', e.error);
-            showNotification('حدث خطأ غير متوقع', true);
-        });
-
-        window.addEventListener('unhandledrejection', (e) => {
-            console.error('وعد مرفوض:', e.reason);
-            showNotification('حدث خطأ في الاتصال', true);
-        });
-
-        // طلب إذن الإشعارات
-        function requestNotificationPermission() {
-            if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        console.log('تم منح إذن الإشعارات');
-                        showNotification('تم تفعيل الإشعارات');
-                    } else {
-                        console.log('تم رفض إذن الإشعارات');
-                    }
-                });
-            }
-        }
-
-        // إرسال إشعار
-        function sendNotification(title, body, icon = null) {
-            if ('Notification' in window && Notification.permission === 'granted') {
-                const notification = new Notification(title, {
-                    body: body,
-                    icon: icon || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTMuMSAyIDE0IDIuOSAxNCA0VjVDMTcuMyA1LjcgMjAgOC4xIDIwIDExVjE3TDIyIDE5VjIwSDJWMTlMNDEyIDJaIiBmaWxsPSIjNDI4NUY0Ii8+CjxwYXRoIGQ9Ik0xMCAyMkMxMCAyMy4xIDEwLjkgMjQgMTIgMjRTMTQgMjMuMSAxNCAyMiIgZmlsbD0iIzQyODVGNCIvPgo8L3N2Zz4K',
-                    badge: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTMuMSAyIDE0IDIuOSAxNCA0VjVDMTcuMyA1LjcgMjAgOC4xIDIwIDExVjE3TDIyIDE5VjIwSDJWMTlMNDEyIDJaIiBmaWxsPSIjNDI4NUY0Ii8+CjxwYXRoIGQ9Ik0xMCAyMkMxMCAyMy4xIDEwLjkgMjQgMTIgMjRTMTQgMjMuMSAxNCAyMiIgZmlsbD0iIzQyODVGNCIvPgo8L3N2Zz4K',
-                    dir: 'rtl',
-                    lang: 'ar'
-                });
-
-                notification.onclick = function() {
-                    window.focus();
-                    notification.close();
-                };
-
-                // إغلاق الإشعار تلقائياً بعد 5 ثوان
-                setTimeout(() => {
-                    notification.close();
-                }, 5000);
-            }
-        }
-
-        // مراقبة تغييرات حالة الأطفال للوالدين
-        function watchChildrenStatus() {
-            if (userType !== 'parent' || !currentUser) return;
-
-            console.log('بدء مراقبة حالة الأطفال');
-
-            db.collection('children')
-                .where('parentId', '==', currentUser.uid)
-                .onSnapshot((snapshot) => {
-                    snapshot.docChanges().forEach((change) => {
-                        if (change.type === 'modified') {
-                            const child = change.doc.data();
-                            const childName = child.name;
-
-                            // إشعار عند تغيير حالة الاتصال
-                            if (change.doc.metadata.hasPendingWrites === false) {
-                                if (child.isOnline) {
-                                    sendNotification(
-                                        'طفل متصل',
-                                        `${childName} متصل الآن ويتم تتبع موقعه`
-                                    );
-                                } else {
-                                    sendNotification(
-                                        'طفل غير متصل',
-                                        `${childName} غير متصل حالياً`
-                                    );
-                                }
-                            }
-                        }
-                    });
-                }, (error) => {
-                    console.error('خطأ في مراقبة حالة الأطفال:', error);
-                });
-        }
-
-        // تحسين أداء الخريطة
-        function optimizeMapPerformance() {
-            if (!map) return;
-
-            // تقليل عدد التحديثات
-            let updateTimeout;
-            const originalAddChildMarker = addChildMarker;
-            
-            addChildMarker = function(childId, child) {
-                clearTimeout(updateTimeout);
-                updateTimeout = setTimeout(() => {
-                    originalAddChildMarker(childId, child);
-                }, 500);
-            };
-        }
-
-        // حفظ البيانات محلياً للعمل بدون إنترنت
-        function saveDataLocally(key, data) {
-            try {
-                localStorage.setItem(key, JSON.stringify(data));
-            } catch (error) {
-                console.error('خطأ في حفظ البيانات محلياً:', error);
-            }
-        }
-
-        function getDataLocally(key) {
-            try {
-                const data = localStorage.getItem(key);
-                return data ? JSON.parse(data) : null;
-            } catch (error) {
-                console.error('خطأ في قراءة البيانات المحلية:', error);
-                return null;
-            }
-        }
-
-        // تحسين تجربة المستخدم على الهواتف
-        function optimizeForMobile() {
-            // منع التكبير عند النقر على الحقول
-            document.addEventListener('touchstart', function() {}, true);
-
-            // تحسين الأداء على الهواتف
-            if (window.DeviceMotionEvent) {
-                // تقليل دقة تتبع الموقع على الهواتف لتوفير البطارية
-                const mobileOptions = {
-                    enableHighAccuracy: false,
-                    timeout: 30000,
-                    maximumAge: 60000
-                };
-
-                // استبدال خيارات تتبع الموقع للهواتف
-                if (navigator.userAgent.match(/Android|iPhone|iPad|iPod|BlackBerry|IEMobile/i)) {
-                    console.log('تم اكتشاف جهاز محمول - تحسين الإعدادات');
-                    
-                    const originalStartLocationTracking = startLocationTracking;
-                    startLocationTracking = function(childId) {
-                        console.log('بدء تتبع الموقع المحسن للهواتف');
-                        
-                        if (!navigator.geolocation) {
-                            updateLocationStatus('المتصفح لا يدعم تحديد الموقع', 'error');
-                            return;
-                        }
-                        
-                        updateLocationStatus('جاري طلب إذن الوصول للموقع...', 'info');
-                        
-                        navigator.geolocation.getCurrentPosition(
-                            (position) => {
-                                updateLocationStatus('تم الحصول على الإذن - بدء التتبع...', 'info');
-                                
-                                locationWatchId = navigator.geolocation.watchPosition(
-                                    (position) => {
-                                        const lat = position.coords.latitude;
-                                        const lng = position.coords.longitude;
-                                        const accuracy = position.coords.accuracy;
-                                        
-                                        console.log('تحديث الموقع (محمول):', lat, lng);
-                                        
-                                        // حفظ محلياً أولاً
-                                        saveDataLocally('lastLocation', {
-                                            lat, lng, accuracy,
-                                            timestamp: Date.now()
-                                        });
-                                        
-                                        // ثم حفظ في السحابة
-                                        const updatePromises = [
-                                            db.collection('children').doc(childId).update({
-                                                location: new firebase.firestore.GeoPoint(lat, lng),
-                                                lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-                                                isOnline: true,
-                                                accuracy: accuracy
-                                            }),
-                                            database.ref('locations/' + childId).set({
-                                                latitude: lat,
-                                                longitude: lng,
-                                                accuracy: accuracy,
-                                                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                                                isOnline: true
-                                            })
-                                        ];
-                                        
-                                        Promise.all(updatePromises).then(() => {
-                                            updateLocationStatus('✅ تم تحديث موقعك بنجاح', 'success');
-                                            
-                                            document.getElementById('latitude').textContent = lat.toFixed(6);
-                                            document.getElementById('longitude').textContent = lng.toFixed(6);
-                                            document.getElementById('lastUpdate').textContent = new Date().toLocaleString('ar-SA');
-                                            document.getElementById('accuracy').textContent = Math.round(accuracy);
-                                            
-                                        }).catch((error) => {
-                                            console.error('خطأ في حفظ الموقع:', error);
-                                            updateLocationStatus('❌ خطأ في حفظ الموقع - سيتم المحاولة مرة أخرى', 'warning');
-                                            
-                                            // محاولة إعادة الإرسال بعد 10 ثوان
-                                            setTimeout(() => {
-                                                Promise.all(updatePromises).catch(err => {
-                                                    console.error('فشل في إعادة المحاولة:', err);
-                                                });
-                                            }, 10000);
-                                        });
-                                    },
-                                    (error) => {
-                                        console.error('خطأ في تتبع الموقع:', error);
-                                        let errorMessage = 'خطأ في تحديد الموقع: ';
-                                        
-                                        switch(error.code) {
-                                            case error.PERMISSION_DENIED:
-                                                errorMessage += 'تم رفض الإذن لتحديد الموقع';
-                                                break;
-                                            case error.POSITION_UNAVAILABLE:
-                                                errorMessage += 'معلومات الموقع غير متوفرة';
-                                                break;
-                                            case error.TIMEOUT:
-                                                errorMessage += 'انتهت مهلة طلب تحديد الموقع';
-                                                break;
-                                            default:
-                                                errorMessage += 'خطأ غير معروف';
-                                                break;
-                                        }
-                                        
-                                        updateLocationStatus(errorMessage, 'error');
-                                        
-                                        // محاولة إعادة التشغيل بعد 30 ثانية
-                                        setTimeout(() => {
-                                            updateLocationStatus('🔄 محاولة إعادة تشغيل تتبع الموقع...', 'info');
-                                            startLocationTracking(childId);
-                                        }, 30000);
-                                    },
-                                    mobileOptions
-                                );
-                            },
-                            (error) => {
-                                console.error('خطأ في طلب الإذن:', error);
-                                updateLocationStatus('يرجى السماح بالوصول للموقع لتتمكن من المتابعة', 'warning');
-                            },
-                            mobileOptions
-                        );
-                    };
-                }
-            }
-        }
-
-        // تحسين الأمان
-        function enhanceSecurity() {
-            // منع النقر بالزر الأيمن في بيئة الإنتاج
-            if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                document.addEventListener('contextmenu', function(e) {
-                    e.preventDefault();
-                });
-
-                // منع فتح أدوات المطور
-                document.addEventListener('keydown', function(e) {
-                    if (e.key === 'F12' || 
-                        (e.ctrlKey && e.shiftKey && e.key === 'I') ||
-                        (e.ctrlKey && e.shiftKey && e.key === 'C') ||
-                        (e.ctrlKey && e.key === 'U')) {
-                        e.preventDefault();
-                    }
-                });
-            }
-
-            // تشفير البيانات المحلية
-            function encryptData(data) {
-                try {
-                    return btoa(JSON.stringify(data));
-                } catch (error) {
-                    console.error('خطأ في تشفير البيانات:', error);
-                    return null;
-                }
-            }
-
-            function decryptData(encryptedData) {
-                try {
-                    return JSON.parse(atob(encryptedData));
-                } catch (error) {
-                    console.error('خطأ في فك تشفير البيانات:', error);
-                    return null;
-                }
-            }
-
-            // استبدال دوال حفظ البيانات بنسخ مشفرة
-            const originalSaveDataLocally = saveDataLocally;
-            const originalGetDataLocally = getDataLocally;
-
-            saveDataLocally = function(key, data) {
-                const encryptedData = encryptData(data);
-                if (encryptedData) {
-                    originalSaveDataLocally(key, encryptedData);
-                }
-            };
-
-            getDataLocally = function(key) {
-                const encryptedData = originalGetDataLocally(key);
-                if (encryptedData && typeof encryptedData === 'string') {
-                    return decryptData(encryptedData);
-                }
-                return encryptedData;
-            };
-        }
-
-        // إضافة ميزات إضافية
-        function addExtraFeatures() {
-            // إضافة زر تحديث يدوي للموقع
-            if (userType === 'child') {
-                const refreshButton = document.createElement('button');
-                refreshButton.className = 'btn btn-primary';
-                refreshButton.textContent = '🔄 تحديث الموقع يدوياً';
-                refreshButton.style.marginTop = '10px';
-                
-                refreshButton.addEventListener('click', () => {
-                    if (currentUser && navigator.geolocation) {
-                        updateLocationStatus('جاري تحديث الموقع...', 'info');
-                        
-                        navigator.geolocation.getCurrentPosition(
-                            (position) => {
-                                const lat = position.coords.latitude;
-                                const lng = position.coords.longitude;
-                                const accuracy = position.coords.accuracy;
-                                
-                                Promise.all([
-                                    db.collection('children').doc(currentUser.uid).update({
-                                        location: new firebase.firestore.GeoPoint(lat, lng),
-                                        lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-                                        isOnline: true,
-                                        accuracy: accuracy
-                                    }),
-                                    database.ref('locations/' + currentUser.uid).set({
-                                        latitude: lat,
-                                        longitude: lng,
-                                        accuracy: accuracy,
-                                        timestamp: firebase.database.ServerValue.TIMESTAMP,
-                                        isOnline: true
-                                    })
-                                ]).then(() => {
-                                    updateLocationStatus('✅ تم تحديث الموقع يدوياً بنجاح', 'success');
-                                    showNotification('تم تحديث الموقع بنجاح');
-                                    
-                                    document.getElementById('latitude').textContent = lat.toFixed(6);
-                                    document.getElementById('longitude').textContent = lng.toFixed(6);
-                                    document.getElementById('lastUpdate').textContent = new Date().toLocaleString('ar-SA');
-                                    document.getElementById('accuracy').textContent = Math.round(accuracy);
-                                    
-                                }).catch((error) => {
-                                    console.error('خطأ في التحديث اليدوي:', error);
-                                    updateLocationStatus('❌ خطأ في التحديث اليدوي', 'error');
-                                    showNotification('خطأ في تحديث الموقع', true);
-                                });
-                            },
-                            (error) => {
-                                console.error('خطأ في الحصول على الموقع:', error);
-                                updateLocationStatus('❌ خطأ في الحصول على الموقع', 'error');
-                                showNotification('خطأ في تحديد الموقع', true);
-                            },
-                            {
-                                enableHighAccuracy: true,
-                                timeout: 10000,
-                                maximumAge: 0
-                            }
-                        );
-                    }
-                });
-                
-                // إضافة الزر لواجهة الطفل
-                const childDashboard = document.getElementById('childDashboard');
-                if (childDashboard) {
-                    const container = childDashboard.querySelector('.container');
-                    const locationStatus = container.querySelector('.location-status');
-                    locationStatus.appendChild(refreshButton);
-                }
-            }
-        }
-
-        // تهيئة التطبيق
-        function initializeApp() {
-            console.log('تهيئة التطبيق...');
-            
-            // طلب إذن الإشعارات
-            requestNotificationPermission();
-            
-            // تحسين للهواتف المحمولة
-            optimizeForMobile();
-            
-            // تعزيز الأمان
-            enhanceSecurity();
-            
-            // إضافة ميزات إضافية
-            setTimeout(() => {
-                addExtraFeatures();
-            }, 1000);
-            
-            // مراقبة حالة الأطفال للوالدين
-            auth.onAuthStateChanged((user) => {
-                if (user && userType === 'parent') {
-                    setTimeout(() => {
-                        watchChildrenStatus();
-                        optimizeMapPerformance();
-                    }, 2000);
-                }
-            });
-            
-            console.log('تم تهيئة التطبيق بنجاح');
-        }
-
-        // بدء التطبيق عند تحميل الصفحة
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(() => {
-                initializeApp();
-            }, 500);
-        });
-
-        // معالجة أخطاء Firebase
-        firebase.firestore().enableNetwork().catch((error) => {
-            console.error('خطأ في تفعيل شبكة Firestore:', error);
-            showNotification('خطأ في الاتصال بقاعدة البيانات', true);
-        });
-
-        // إعداد Firestore للعمل بدون اتصال
-        firebase.firestore().enablePersistence({
-            synchronizeTabs: true
-        }).catch((error) => {
-            if (error.code === 'failed-precondition') {
-                console.warn('عدة علامات تبويب مفتوحة، تم تعطيل الاستمرارية');
-            } else if (error.code === 'unimplemented') {
-                console.warn('المتصفح لا يدعم الاستمرارية');
-            }
-        });
-
-        console.log('تم تحميل جميع وظائف التطبيق بنجاح');
-    </script>
 </body>
 </html>
